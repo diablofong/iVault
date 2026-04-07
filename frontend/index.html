@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>iVault</title>
+</head>
+<body>
+<div id="app">
+    <!-- 標題列 -->
+    <div class="titlebar">
+        <span class="titlebar-title">iVault</span>
+        <div class="titlebar-buttons">
+            <button class="titlebar-btn minimize" id="btn-minimize">&#x2014;</button>
+            <button class="titlebar-btn close" id="btn-close">&#x2715;</button>
+        </div>
+    </div>
+
+    <!-- 主內容區 -->
+    <div class="main-content">
+
+        <!-- IDLE：等待連接 iPhone -->
+        <div class="state-view" id="view-idle">
+            <div class="card">
+                <div class="state-icon">📱</div>
+                <h2>連接 iPhone</h2>
+                <p class="state-desc">請使用 USB 線將 iPhone 連接到電腦</p>
+            </div>
+        </div>
+
+        <!-- DEVICE_FOUND：已偵測到裝置 -->
+        <div class="state-view" id="view-device-found">
+            <div class="card">
+                <div class="state-icon">✅</div>
+                <h2 id="device-name">iPhone</h2>
+                <p class="state-desc" id="device-info">正在讀取裝置資訊...</p>
+            </div>
+        </div>
+
+        <!-- TRUST_GUIDE：信任引導 -->
+        <div class="state-view" id="view-trust-guide">
+            <div class="card">
+                <div class="state-icon">🔐</div>
+                <h2>信任此電腦</h2>
+                <p class="state-desc">請在 iPhone 上點擊「信任」，然後輸入解鎖密碼</p>
+                <p class="state-hint">等待中...</p>
+            </div>
+        </div>
+
+        <!-- DRIVER_MISSING：Windows 缺少 Apple Devices -->
+        <div class="state-view" id="view-driver-missing">
+            <div class="card">
+                <div class="state-icon">⚠️</div>
+                <h2>需要安裝 Apple Devices</h2>
+                <p class="state-desc">Windows 需要安裝 Apple Devices App 才能讀取 iPhone</p>
+                <button class="btn-primary" id="btn-install-driver">前往 Microsoft Store 安裝（免費）</button>
+                <button class="btn-secondary" id="btn-recheck-driver">重新偵測</button>
+            </div>
+        </div>
+
+        <!-- READY：準備備份 -->
+        <div class="state-view" id="view-ready">
+            <div class="card">
+                <h2 id="ready-device-name">iPhone</h2>
+                <p class="state-desc" id="ready-photo-count">正在計算照片數量...</p>
+                <div class="path-row">
+                    <span class="path-label">備份到</span>
+                    <span class="path-value selectable" id="backup-path">-</span>
+                    <button class="btn-icon" id="btn-select-folder">選擇</button>
+                </div>
+                <button class="btn-primary" id="btn-start-backup">開始備份</button>
+            </div>
+        </div>
+
+        <!-- BACKING_UP：備份中 -->
+        <div class="state-view" id="view-backing-up">
+            <div class="card">
+                <h2>備份中</h2>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" id="backup-progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="backup-stats">
+                    <span class="metric" id="backup-percent">0%</span>
+                    <span class="metric" id="backup-speed">-</span>
+                    <span class="metric" id="backup-eta">-</span>
+                </div>
+                <p class="state-hint" id="backup-current-file">準備中...</p>
+                <button class="btn-secondary" id="btn-cancel-backup">取消</button>
+            </div>
+        </div>
+
+        <!-- DONE：完成 -->
+        <div class="state-view" id="view-done">
+            <div class="card">
+                <div class="state-icon">🎉</div>
+                <h2>備份完成</h2>
+                <div class="done-stats">
+                    <div class="stat-item">
+                        <span class="metric" id="done-new-count">0</span>
+                        <span class="stat-label">新增</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="metric" id="done-skip-count">0</span>
+                        <span class="stat-label">略過</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="metric" id="done-fail-count">0</span>
+                        <span class="stat-label">失敗</span>
+                    </div>
+                </div>
+                <button class="btn-secondary" id="btn-open-folder">開啟資料夾</button>
+                <button class="btn-primary" id="btn-backup-again">再次備份</button>
+            </div>
+        </div>
+
+        <!-- ERROR：錯誤 -->
+        <div class="state-view" id="view-error">
+            <div class="card">
+                <div class="state-icon">❌</div>
+                <h2>發生錯誤</h2>
+                <p class="state-desc selectable" id="error-message">-</p>
+                <button class="btn-primary" id="btn-retry">重試</button>
+                <button class="btn-secondary" id="btn-back-to-idle">返回</button>
+            </div>
+        </div>
+
+    </div><!-- /.main-content -->
+</div><!-- /#app -->
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>
