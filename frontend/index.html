@@ -57,16 +57,24 @@
         <!-- TRUST_GUIDE：信任引導 -->
         <div class="state-view" id="view-trust-guide">
             <div class="card">
-                <div class="state-icon">
-                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-                        <rect x="16" y="22" width="24" height="22" rx="4" stroke="currentColor" stroke-width="2.5"/>
-                        <path d="M22 22v-6a6 6 0 0 1 12 0v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                        <circle cx="28" cy="33" r="3" fill="currentColor"/>
-                    </svg>
+                <!-- iPhone 信任對話框動畫 -->
+                <div class="iphone-mockup">
+                    <div class="iphone-screen">
+                        <div class="trust-dialog">
+                            <p class="trust-dialog-title">信任此電腦？</p>
+                            <p class="trust-dialog-body">你的設定與資料將<br>可透過此電腦存取。</p>
+                            <div class="trust-dialog-buttons">
+                                <button class="trust-btn-cancel" tabindex="-1">不信任</button>
+                                <button class="trust-btn-ok trust-btn-pulse" tabindex="-1">信任</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 側邊按鈕裝飾 -->
+                    <div class="iphone-side-btn iphone-side-right"></div>
                 </div>
-                <h2>請信任此電腦</h2>
-                <p class="state-desc">在 iPhone 上點擊「信任」，並輸入解鎖密碼</p>
-                <p class="state-hint">iPhone 可能需要輸入解鎖密碼</p>
+
+                <h2>請看你的 iPhone，點「信任」</h2>
+                <p class="state-desc">iPhone 可能需要輸入解鎖密碼</p>
                 <div class="spinner-row">
                     <div class="spinner"></div>
                     <span class="spinner-label">等待中...</span>
