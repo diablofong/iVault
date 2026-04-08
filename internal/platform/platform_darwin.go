@@ -58,6 +58,15 @@ func OpenURL(url string) error {
 	return exec.Command("open", url).Start()
 }
 
+// HasWinget macOS 無 winget
+func HasWinget() bool { return false }
+
+// InstallAppleDevicesViaWinget macOS 不需要（原生支援）
+func InstallAppleDevicesViaWinget() error { return nil }
+
+// RecheckAppleDevices macOS 永遠回傳 true
+func RecheckAppleDevices() bool { return true }
+
 func getDiskSpace(path string) DiskInfo {
 	disk := DiskInfo{Path: path}
 	var stat syscall.Statfs_t

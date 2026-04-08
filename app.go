@@ -106,9 +106,49 @@ func (a *App) CheckAppleDevicesInstalled() bool {
 	return a.platformInfo.AppleDevicesInstalled
 }
 
-// OpenAppleDevicesStore Windows 專用：開啟 Microsoft Store Apple Devices 頁面
-func (a *App) OpenAppleDevicesStore() {
-	_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9N")
+// InstallAppleDevices Windows 專用：嘗試安裝 Apple Devices
+// 有 winget → 背景 install/upgrade；無 winget → 開 Microsoft Store
+func (a *App) InstallAppleDevices() {
+	go a.pollDriverInstall()
+
+	if platform.HasWinget() {
+		wailsRuntime.EventsEmit(a.ctx, "driver:install-started", map[string]any{
+			"method": "winget",
+		})
+		go func() {
+			if err := platform.InstallAppleDevicesViaWinget(); err != nil {
+				wailsRuntime.EventsEmit(a.ctx, "driver:install-failed", map[string]any{
+					"error": err.Error(),
+				})
+				// winget 兩步都失敗，fallback 到 Microsoft Store
+				_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9K")
+			}
+			// 成功時 pollDriverInstall 會偵測路徑並 emit driver:installed
+		}()
+	} else {
+		_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9K")
+		wailsRuntime.EventsEmit(a.ctx, "driver:install-started", map[string]any{
+			"method": "store",
+		})
+	}
+}
+
+// pollDriverInstall 每 3 秒檢查 Apple Devices 是否已安裝，最多等 3 分鐘
+func (a *App) pollDriverInstall() {
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+	for i := 0; i < 60; i++ {
+		<-ticker.C
+		if platform.RecheckAppleDevices() {
+			a.mu.Lock()
+			if a.platformInfo != nil {
+				a.platformInfo.AppleDevicesInstalled = true
+			}
+			a.mu.Unlock()
+			wailsRuntime.EventsEmit(a.ctx, "driver:installed", nil)
+			return
+		}
+	}
 }
 
 // ============================================================

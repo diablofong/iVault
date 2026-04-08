@@ -109,6 +109,39 @@ func OpenURL(url string) error {
 	return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 }
 
+// HasWinget 檢查系統是否有 winget CLI
+func HasWinget() bool {
+	_, err := exec.LookPath("winget")
+	return err == nil
+}
+
+// InstallAppleDevicesViaWinget 執行安裝或升級（blocking，應在 goroutine 中呼叫）
+// 策略：先 install；失敗時 fallback 到 upgrade（處理已安裝舊版的情況）
+func InstallAppleDevicesViaWinget() error {
+	const id = "9NP83LWLPZ9K"
+	commonArgs := []string{
+		"--source", "msstore",
+		"--accept-package-agreements",
+		"--accept-source-agreements",
+	}
+
+	// Step 1：全新安裝
+	installArgs := append([]string{"install", id}, commonArgs...)
+	if err := exec.Command("winget", installArgs...).Run(); err == nil {
+		return nil
+	}
+
+	// Step 2：install 失敗（可能已安裝舊版）→ 嘗試升級
+	upgradeArgs := append([]string{"upgrade", id}, commonArgs...)
+	return exec.Command("winget", upgradeArgs...).Run()
+	// 若 upgrade 也失敗（已是最新版），pollDriverInstall() 仍會透過路徑偵測判斷
+}
+
+// RecheckAppleDevices 重新偵測 Apple Devices 安裝狀態（不使用快取）
+func RecheckAppleDevices() bool {
+	return checkAppleDevices()
+}
+
 func driveExists(root string) bool {
 	ptr, _ := syscall.UTF16PtrFromString(root)
 	driveType, _, _ := getDriveTypeW.Call(uintptr(unsafe.Pointer(ptr)))
