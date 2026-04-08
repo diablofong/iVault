@@ -635,3 +635,22 @@ body.os-windows .btn-primary:hover:not(:disabled) {
     background: var(--border);
     border-radius: 0 2px 2px 0;
 }
+
+/* --- HEIC 轉檔進度（DONE 頁） --- */
+.heic-convert-progress {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.heic-convert-bar-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.heic-convert-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}

@@ -164,6 +164,26 @@ function registerEvents() {
         else setState('idle');
     });
 
+    // HEIC 轉檔事件
+    EventsOn('heic:progress', (data) => {
+        const section = document.getElementById('heic-convert-section');
+        const bar = document.getElementById('heic-progress-bar');
+        const label = document.getElementById('heic-convert-label');
+        if (section) section.style.display = '';
+        if (bar) bar.style.width = (data.percent ?? 0).toFixed(1) + '%';
+        if (label) label.textContent = `正在轉換 HEIC... ${data.done ?? 0} / ${data.total ?? 0}`;
+    });
+
+    EventsOn('heic:complete', (data) => {
+        const section = document.getElementById('heic-convert-section');
+        const label = document.getElementById('heic-convert-label');
+        if (data?.converted > 0) {
+            if (label) label.textContent = `已轉換 ${fmt(data.converted)} 張 JPEG`;
+        } else {
+            if (section) section.style.display = 'none';
+        }
+    });
+
     EventsOn('driver:install-failed', () => {
         // winget 兩步都失敗，已 fallback 到 MS Store，更新提示文字
         const label = document.getElementById('install-status-label');

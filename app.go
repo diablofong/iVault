@@ -11,6 +11,7 @@ import (
 	"ivault/internal/backup"
 	"ivault/internal/config"
 	"ivault/internal/device"
+	"ivault/internal/heic"
 	"ivault/internal/platform"
 
 	"github.com/danielpaulus/go-ios/ios"
@@ -241,6 +242,12 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 				Duration:   result.Duration,
 			})
 			wailsRuntime.EventsEmit(a.ctx, "backup:complete", result)
+
+			// 若勾選了「轉存 JPEG」且備份結果含 HEIC，啟動轉檔
+			if cfg.ConvertHeic && result.HasHeic {
+				converter := heic.NewConverter(92, emitFn)
+				go converter.ConvertAll(a.ctx, cfg.BackupPath)
+			}
 		}
 	}()
 	return nil
