@@ -43,6 +43,24 @@ func ListDevices() ([]DeviceInfo, error) {
 	return result, nil
 }
 
+// ConnectAFC 建立 AFC 連線（供 Engine 使用）
+func ConnectAFC(udid string) (*afc.Client, error) {
+	d, err := getIOSDevice(udid)
+	if err != nil {
+		return nil, err
+	}
+	client, err := afc.New(d)
+	if err != nil {
+		return nil, fmt.Errorf("afc connect: %w", err)
+	}
+	return client, nil
+}
+
+// IsSupportedExtension 檢查副檔名是否為備份支援格式（小寫，含點，如 ".heic"）
+func IsSupportedExtension(ext string) bool {
+	return supportedExtensions[ext]
+}
+
 // getIOSDevice 依 UDID 找出對應的 ios.DeviceEntry
 func getIOSDevice(udid string) (ios.DeviceEntry, error) {
 	deviceList, err := ios.ListDevices()
