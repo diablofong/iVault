@@ -1,5 +1,7 @@
 package device
 
+import "strings"
+
 // DeviceInfo 裝置基本資訊（偵測到裝置時立即可用）
 type DeviceInfo struct {
 	UDID       string `json:"udid"`
@@ -23,4 +25,14 @@ type PhotoFile struct {
 	FileName   string `json:"fileName"`   // "IMG_0001.HEIC"
 	Size       int64  `json:"size"`       // bytes
 	ModTime    int64  `json:"modTime"`    // Unix timestamp（秒）
+}
+
+// RelativePath 回傳相對於 /DCIM/ 的路徑，作為 manifest key
+// 例："/DCIM/100APPLE/IMG_0001.HEIC" → "100APPLE/IMG_0001.HEIC"
+func (f PhotoFile) RelativePath() string {
+	parts := strings.SplitN(f.RemotePath, "/DCIM/", 2)
+	if len(parts) == 2 {
+		return parts[1]
+	}
+	return f.FileName
 }
