@@ -25,6 +25,8 @@
                 <div class="state-icon">📱</div>
                 <h2>連接 iPhone</h2>
                 <p class="state-desc">請使用 USB 線將 iPhone 連接到電腦</p>
+                <button class="btn-primary" id="btn-detect-device">偵測裝置</button>
+                <p class="state-hint" id="detect-result" style="word-break:break-all"></p>
             </div>
         </div>
 
@@ -34,6 +36,8 @@
                 <div class="state-icon">✅</div>
                 <h2 id="device-name">iPhone</h2>
                 <p class="state-desc" id="device-info">正在讀取裝置資訊...</p>
+                <button class="btn-primary" id="btn-scan-dcim">掃描 DCIM（PoC）</button>
+                <p class="state-hint" id="scan-result" style="word-break:break-all;max-height:120px;overflow-y:auto"></p>
             </div>
         </div>
 

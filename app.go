@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
+
+	"ivault/internal/device"
 )
 
 // App struct
@@ -24,7 +25,17 @@ func (a *App) startup(ctx context.Context) {
 // shutdown is called when the app is about to quit
 func (a *App) shutdown(ctx context.Context) {}
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
+// ListDevices 回傳所有已連接的 iOS 裝置
+func (a *App) ListDevices() ([]device.DeviceInfo, error) {
+	return device.ListDevices()
+}
+
+// GetDeviceDetail 取得裝置詳細資訊（含照片數、儲存空間）
+func (a *App) GetDeviceDetail(udid string) (*device.DeviceDetail, error) {
+	return device.GetDeviceDetail(udid)
+}
+
+// ScanDCIM 掃描裝置 DCIM 目錄，回傳照片清單
+func (a *App) ScanDCIM(udid string) ([]device.PhotoFile, error) {
+	return device.ScanDCIM(udid)
 }
