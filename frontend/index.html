@@ -7,7 +7,8 @@
 </head>
 <body>
 <div id="app">
-    <!-- 標題列 -->
+
+    <!-- 標題列拖拽區 -->
     <div class="titlebar">
         <span class="titlebar-title">iVault</span>
         <div class="titlebar-buttons">
@@ -19,47 +20,82 @@
     <!-- 主內容區 -->
     <div class="main-content">
 
-        <!-- IDLE：等待連接 iPhone -->
+        <!-- IDLE：等待連接 -->
         <div class="state-view" id="view-idle">
             <div class="card">
-                <div class="state-icon">📱</div>
-                <h2>連接 iPhone</h2>
-                <p class="state-desc">請使用 USB 線將 iPhone 連接到電腦</p>
-                <button class="btn-primary" id="btn-detect-device">偵測裝置</button>
-                <p class="state-hint" id="detect-result" style="word-break:break-all"></p>
+                <div class="state-icon idle-icon">
+                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                        <rect x="12" y="4" width="32" height="48" rx="6" stroke="currentColor" stroke-width="2.5" opacity="0.3"/>
+                        <rect x="18" y="10" width="20" height="28" rx="2" fill="currentColor" opacity="0.1"/>
+                        <circle cx="28" cy="45" r="2" fill="currentColor" opacity="0.3"/>
+                        <line x1="24" y1="7" x2="32" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                    </svg>
+                </div>
+                <h2>請連接 iPhone</h2>
+                <p class="state-desc">使用 USB 線將 iPhone 連接到電腦</p>
+                <p class="state-hint">支援 iOS 14 以上</p>
             </div>
         </div>
 
-        <!-- DEVICE_FOUND：已偵測到裝置 -->
+        <!-- DEVICE_FOUND：偵測到裝置，自動轉換中 -->
         <div class="state-view" id="view-device-found">
             <div class="card">
-                <div class="state-icon">✅</div>
+                <div class="state-icon">
+                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                        <rect x="12" y="4" width="32" height="48" rx="6" stroke="currentColor" stroke-width="2.5"/>
+                        <rect x="18" y="10" width="20" height="28" rx="2" fill="currentColor" opacity="0.15"/>
+                        <circle cx="28" cy="45" r="2" fill="currentColor"/>
+                        <line x1="24" y1="7" x2="32" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
                 <h2 id="device-name">iPhone</h2>
-                <p class="state-desc" id="device-info">正在讀取裝置資訊...</p>
-                <button class="btn-primary" id="btn-scan-dcim">掃描 DCIM（PoC）</button>
-                <button class="btn-secondary" id="btn-copy-first">複製第一張照片（PoC）</button>
-                <p class="state-hint" id="scan-result" style="word-break:break-all;max-height:120px;overflow-y:auto;white-space:pre-wrap"></p>
+                <p class="state-desc" id="device-ios">iOS -</p>
+                <p class="state-hint" id="device-photo-count">正在讀取裝置資訊...</p>
             </div>
         </div>
 
         <!-- TRUST_GUIDE：信任引導 -->
         <div class="state-view" id="view-trust-guide">
             <div class="card">
-                <div class="state-icon">🔐</div>
-                <h2>信任此電腦</h2>
-                <p class="state-desc">請在 iPhone 上點擊「信任」，然後輸入解鎖密碼</p>
-                <p class="state-hint">等待中...</p>
+                <div class="state-icon">
+                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                        <rect x="16" y="22" width="24" height="22" rx="4" stroke="currentColor" stroke-width="2.5"/>
+                        <path d="M22 22v-6a6 6 0 0 1 12 0v6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="28" cy="33" r="3" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h2>請信任此電腦</h2>
+                <p class="state-desc">在 iPhone 上點擊「信任」，並輸入解鎖密碼</p>
+                <p class="state-hint">iPhone 可能需要輸入解鎖密碼</p>
+                <div class="spinner-row">
+                    <div class="spinner"></div>
+                    <span class="spinner-label">等待中...</span>
+                </div>
             </div>
         </div>
 
         <!-- DRIVER_MISSING：Windows 缺少 Apple Devices -->
         <div class="state-view" id="view-driver-missing">
             <div class="card">
-                <div class="state-icon">⚠️</div>
+                <div class="state-icon warning-icon">
+                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                        <path d="M28 8L50 46H6L28 8Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+                        <line x1="28" y1="24" x2="28" y2="36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="28" cy="41" r="1.5" fill="currentColor"/>
+                    </svg>
+                </div>
                 <h2>需要安裝 Apple Devices</h2>
-                <p class="state-desc">Windows 需要安裝 Apple Devices App 才能讀取 iPhone</p>
-                <button class="btn-primary" id="btn-install-driver">前往 Microsoft Store 安裝（免費）</button>
-                <button class="btn-secondary" id="btn-recheck-driver">重新偵測</button>
+                <p class="state-desc">需要免費的「Apple Devices」App 才能讀取 iPhone 照片</p>
+                <!-- 安裝前 -->
+                <button class="btn-primary" id="btn-install-driver">一鍵安裝（免費）</button>
+                <!-- 安裝中（JS 切換顯示） -->
+                <div class="install-progress" id="install-progress" style="display:none">
+                    <div class="spinner-row">
+                        <div class="spinner"></div>
+                        <span class="spinner-label" id="install-status-label">正在安裝...</span>
+                    </div>
+                    <p class="state-hint">安裝完成後會自動繼續</p>
+                </div>
             </div>
         </div>
 
@@ -67,12 +103,26 @@
         <div class="state-view" id="view-ready">
             <div class="card">
                 <h2 id="ready-device-name">iPhone</h2>
-                <p class="state-desc" id="ready-photo-count">正在計算照片數量...</p>
-                <div class="path-row">
-                    <span class="path-label">備份到</span>
-                    <span class="path-value selectable" id="backup-path">-</span>
-                    <button class="btn-icon" id="btn-select-folder">選擇</button>
+                <p class="state-desc" id="ready-photo-count"></p>
+
+                <div class="path-section">
+                    <div class="path-row">
+                        <span class="path-label">備份到</span>
+                        <span class="path-value selectable" id="backup-path">-</span>
+                        <button class="btn-icon" id="btn-select-folder">選擇</button>
+                    </div>
+                    <div class="disk-info">
+                        <span id="disk-free">-</span>
+                        <span class="disk-sep">·</span>
+                        <span>預估需要 <span id="estimate-size">-</span></span>
+                    </div>
                 </div>
+
+                <label class="checkbox-row">
+                    <input type="checkbox" id="convert-heic"/>
+                    <span>備份後同時轉存 JPEG 副本</span>
+                </label>
+
                 <button class="btn-primary" id="btn-start-backup">開始備份</button>
             </div>
         </div>
@@ -82,50 +132,82 @@
             <div class="card">
                 <h2>備份中</h2>
                 <div class="progress-bar">
-                    <div class="progress-bar-fill" id="backup-progress-bar" style="width: 0%"></div>
+                    <div class="progress-bar-fill" id="backup-progress-bar" style="width:0%"></div>
                 </div>
-                <div class="backup-stats">
+                <div class="backup-metrics">
                     <span class="metric" id="backup-percent">0%</span>
-                    <span class="metric" id="backup-speed">-</span>
-                    <span class="metric" id="backup-eta">-</span>
+                    <span class="metric-sep">·</span>
+                    <span id="backup-speed">-</span>
+                    <span class="metric-sep">·</span>
+                    <span>剩餘 <span id="backup-eta">-</span></span>
                 </div>
                 <p class="state-hint" id="backup-current-file">準備中...</p>
+                <p class="backup-count">
+                    <span id="backup-done-count">0 / 0 張</span>
+                    <span id="backup-skip-count" class="skip-count"></span>
+                </p>
                 <button class="btn-secondary" id="btn-cancel-backup">取消</button>
             </div>
         </div>
 
-        <!-- DONE：完成 -->
+        <!-- DONE：備份完成 -->
         <div class="state-view" id="view-done">
             <div class="card">
-                <div class="state-icon">🎉</div>
+                <div class="state-icon success-icon">
+                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                        <circle cx="28" cy="28" r="22" stroke="currentColor" stroke-width="2.5"/>
+                        <path d="M19 28l7 7 11-14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
                 <h2>備份完成</h2>
+                <p class="state-hint done-duration" id="done-duration"></p>
+
                 <div class="done-stats">
                     <div class="stat-item">
-                        <span class="metric" id="done-new-count">0</span>
+                        <span class="stat-number metric" id="done-new-count">0</span>
                         <span class="stat-label">新增</span>
                     </div>
+                    <div class="stat-divider"></div>
                     <div class="stat-item">
-                        <span class="metric" id="done-skip-count">0</span>
+                        <span class="stat-number metric" id="done-skip-count">0</span>
                         <span class="stat-label">略過</span>
                     </div>
+                    <div class="stat-divider"></div>
                     <div class="stat-item">
-                        <span class="metric" id="done-fail-count">0</span>
+                        <span class="stat-number metric" id="done-fail-count">0</span>
                         <span class="stat-label">失敗</span>
                     </div>
                 </div>
-                <button class="btn-secondary" id="btn-open-folder">開啟資料夾</button>
-                <button class="btn-primary" id="btn-backup-again">再次備份</button>
+
+                <button class="btn-secondary" id="btn-open-folder">開啟備份資料夾</button>
+                <button class="btn-primary" id="btn-backup-again">返回首頁</button>
+
+                <div class="sponsor">
+                    <div class="sponsor-divider"></div>
+                    <p class="sponsor-text">這工具幫你省了不少時間，給我一杯咖啡？☕</p>
+                    <button class="btn-sponsor" id="btn-sponsor">$5 支持開發</button>
+                </div>
+
+                <div class="heic-hint" id="heic-hint" style="display:none">
+                    <p>你備份的照片含有 .heic 格式，Windows 需安裝擴充才能預覽</p>
+                </div>
             </div>
         </div>
 
         <!-- ERROR：錯誤 -->
         <div class="state-view" id="view-error">
             <div class="card">
-                <div class="state-icon">❌</div>
+                <div class="state-icon error-icon">
+                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+                        <circle cx="28" cy="28" r="22" stroke="currentColor" stroke-width="2.5"/>
+                        <line x1="21" y1="21" x2="35" y2="35" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="35" y1="21" x2="21" y2="35" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                </div>
                 <h2>發生錯誤</h2>
                 <p class="state-desc selectable" id="error-message">-</p>
                 <button class="btn-primary" id="btn-retry">重試</button>
-                <button class="btn-secondary" id="btn-back-to-idle">返回</button>
+                <button class="btn-secondary" id="btn-back-to-idle">返回首頁</button>
             </div>
         </div>
 

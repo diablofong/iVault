@@ -283,3 +283,258 @@ body.os-windows .btn-primary:hover:not(:disabled) {
     opacity: 1;
     transform: translateY(0);
 }
+
+/* --- 卡片內垂直間距 --- */
+.card > * + * {
+    margin-top: 12px;
+}
+
+/* --- 狀態圖示 --- */
+.state-icon {
+    display: flex;
+    justify-content: center;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.state-icon.success-icon { color: var(--success); }
+.state-icon.error-icon   { color: var(--danger); }
+.state-icon.warning-icon { color: #FF9F0A; }
+
+/* --- 文字 --- */
+.card h2 {
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.state-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.5;
+}
+
+.state-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    opacity: 0.7;
+}
+
+/* --- 旋轉等待動畫 --- */
+.spinner-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.spinner-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* --- 路徑選擇列 --- */
+.path-section {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.path-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.path-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.path-value {
+    flex: 1;
+    font-size: 12px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.btn-icon {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 150ms;
+}
+
+.btn-icon:hover { background: var(--accent-hover); }
+
+.disk-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+    display: flex;
+    gap: 6px;
+}
+
+.disk-sep { opacity: 0.4; }
+
+/* --- HEIC 勾選 --- */
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.checkbox-row input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* --- BACKING_UP 統計 --- */
+.backup-metrics {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    justify-content: center;
+}
+
+.metric-sep {
+    color: var(--text-secondary);
+    opacity: 0.4;
+}
+
+.backup-count {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.skip-count {
+    margin-left: 6px;
+    opacity: 0.7;
+}
+
+/* --- DONE 統計卡片 --- */
+.done-stats {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 0;
+}
+
+.stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.stat-number {
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.stat-number.danger { color: var(--danger); }
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.stat-divider {
+    width: 1px;
+    height: 32px;
+    background: var(--border);
+}
+
+.done-duration {
+    margin-top: -4px;
+    margin-bottom: 4px;
+}
+
+/* --- 贊助區塊 --- */
+.sponsor {
+    margin-top: 4px;
+    text-align: center;
+}
+
+.sponsor-divider {
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 12px;
+}
+
+.sponsor-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.btn-sponsor {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 150ms, color 150ms;
+}
+
+.btn-sponsor:hover {
+    background: rgba(128, 128, 128, 0.1);
+    color: var(--text-primary);
+}
+
+/* --- HEIC 提示 --- */
+.heic-hint {
+    background: rgba(255, 159, 10, 0.1);
+    border: 1px solid rgba(255, 159, 10, 0.3);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #FF9F0A;
+    text-align: center;
+    line-height: 1.4;
+}

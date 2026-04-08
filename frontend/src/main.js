@@ -1,7 +1,23 @@
 import './style.css';
 import './app.css';
-import { WindowMinimise, Quit } from '../wailsjs/runtime/runtime';
-import { ListDevices, GetDeviceDetail, ScanDCIM, CopyFirstPhoto } from '../wailsjs/go/main/App';
+import { WindowMinimise, Quit, EventsOn } from '../wailsjs/runtime/runtime';
+import {
+    GetPlatformInfo,
+    GetConnectedDevice,
+    GetDeviceDetail,
+    CheckTrustStatus,
+    CheckAppleDevicesInstalled,
+    SelectBackupFolder,
+    GetDefaultBackupPath,
+    GetDiskInfo,
+    EstimateBackupSize,
+    StartBackup,
+    CancelBackup,
+    LoadConfig,
+    OpenFolder,
+    OpenURL,
+    InstallAppleDevices,
+} from '../wailsjs/go/main/App';
 
 // ============================================================
 // 狀態機
@@ -9,170 +25,383 @@ import { ListDevices, GetDeviceDetail, ScanDCIM, CopyFirstPhoto } from '../wails
 const STATES = ['idle', 'device-found', 'trust-guide', 'driver-missing', 'ready', 'backing-up', 'done', 'error'];
 
 let currentState = null;
+let currentDevice = null;   // device.DeviceInfo
+let selectedPath = '';
+let backupResult = null;
+let platformInfo = null;
+let appConfig = null;
+let lastError = null;
 
-function setState(newState) {
+function setState(newState, data = {}) {
     if (!STATES.includes(newState)) {
-        console.error('未知狀態:', newState);
+        console.error('Unknown state:', newState);
         return;
     }
 
-    // 隱藏目前視圖
+    // 淡出目前視圖
     if (currentState) {
-        const current = document.getElementById(`view-${currentState}`);
-        if (current) {
-            current.classList.remove('visible');
-            setTimeout(() => current.classList.remove('active'), 200);
+        const prev = document.getElementById(`view-${currentState}`);
+        if (prev) {
+            prev.classList.remove('visible');
+            setTimeout(() => prev.classList.remove('active'), 200);
         }
     }
 
     currentState = newState;
 
-    // 顯示新視圖
+    // 淡入新視圖
     const next = document.getElementById(`view-${newState}`);
     if (next) {
         next.classList.add('active');
-        // 讓 transition 觸發
         requestAnimationFrame(() => {
             requestAnimationFrame(() => next.classList.add('visible'));
         });
     }
+
+    onEnterState(newState, data);
+}
+
+function onEnterState(state, data) {
+    switch (state) {
+        case 'device-found':   onEnterDeviceFound(data);  break;
+        case 'trust-guide':    onEnterTrustGuide(data);   break;
+        case 'ready':          onEnterReady(data);         break;
+        case 'done':           onEnterDone(data);          break;
+        case 'error':          onEnterError(data);         break;
+    }
 }
 
 // ============================================================
-// 平台初始化
+// 初始化
 // ============================================================
-let currentUDID = null;
-
 async function init() {
-    // 預設先顯示 idle
-    setState('idle');
-
-    // 標題列按鈕（Windows 用）
+    // 視窗控制（Windows）
     document.getElementById('btn-minimize')?.addEventListener('click', () => WindowMinimise());
     document.getElementById('btn-close')?.addEventListener('click', () => Quit());
 
-    // IDLE：偵測裝置（AFC PoC）
-    document.getElementById('btn-detect-device')?.addEventListener('click', onDetectDevice);
+    // 取得平台資訊與設定
+    try {
+        [platformInfo, appConfig] = await Promise.all([GetPlatformInfo(), LoadConfig()]);
+        document.body.classList.add(`os-${platformInfo.os}`);
+        if (platformInfo.darkMode) document.body.classList.add('dark');
+    } catch (e) {
+        console.error('init:', e);
+    }
 
-    // DEVICE_FOUND：掃描 DCIM（AFC PoC）
-    document.getElementById('btn-scan-dcim')?.addEventListener('click', onScanDCIM);
-    document.getElementById('btn-copy-first')?.addEventListener('click', onCopyFirstPhoto);
+    // 註冊 Wails 事件
+    registerEvents();
 
-    // DRIVER_MISSING 按鈕
-    document.getElementById('btn-install-driver')?.addEventListener('click', onInstallDriver);
-    document.getElementById('btn-recheck-driver')?.addEventListener('click', onRecheckDriver);
+    // 綁定按鈕
+    bindHandlers();
 
-    // READY 按鈕
+    // 檢查是否已有裝置連線（app 重啟場景）
+    try {
+        const dev = await GetConnectedDevice();
+        if (dev && dev.udid) {
+            currentDevice = dev;
+            setState('device-found', dev);
+        } else {
+            setState('idle');
+        }
+    } catch (e) {
+        setState('idle');
+    }
+}
+
+// ============================================================
+// Wails Event 監聽
+// ============================================================
+function registerEvents() {
+    EventsOn('device:connected', (info) => {
+        currentDevice = info;
+        setState('device-found', info);
+    });
+
+    EventsOn('device:disconnected', () => {
+        currentDevice = null;
+        // 備份中若斷線，backup:error 會處理；其他狀態直接回 idle
+        if (currentState !== 'backing-up') {
+            setState('idle');
+        }
+    });
+
+    EventsOn('device:trust-changed', (data) => {
+        if (data.trusted && currentState === 'trust-guide') {
+            setState('ready', currentDevice || { udid: data.udid });
+        }
+    });
+
+    EventsOn('backup:progress', (progress) => {
+        updateProgressUI(progress);
+    });
+
+    EventsOn('backup:complete', (result) => {
+        backupResult = result;
+        setState('done', result);
+    });
+
+    EventsOn('backup:error', (err) => {
+        lastError = err;
+        if (currentState === 'backing-up') {
+            setState('error', err);
+        }
+    });
+
+    // Driver 安裝事件
+    EventsOn('driver:install-started', (data) => {
+        const btn = document.getElementById('btn-install-driver');
+        const progress = document.getElementById('install-progress');
+        const label = document.getElementById('install-status-label');
+        if (btn) btn.style.display = 'none';
+        if (progress) progress.style.display = '';
+        if (label) {
+            label.textContent = data?.method === 'winget' ? '正在自動安裝...' : '請在 Microsoft Store 完成安裝';
+        }
+    });
+
+    EventsOn('driver:installed', () => {
+        if (currentDevice) setState('device-found', currentDevice);
+        else setState('idle');
+    });
+
+    EventsOn('driver:install-failed', () => {
+        // winget 兩步都失敗，已 fallback 到 MS Store，更新提示文字
+        const label = document.getElementById('install-status-label');
+        if (label) label.textContent = '請在 Microsoft Store 完成安裝';
+    });
+}
+
+// ============================================================
+// 按鈕綁定
+// ============================================================
+function bindHandlers() {
+    // DRIVER_MISSING
+    document.getElementById('btn-install-driver')?.addEventListener('click', () => InstallAppleDevices());
+
+    // READY
     document.getElementById('btn-select-folder')?.addEventListener('click', onSelectFolder);
     document.getElementById('btn-start-backup')?.addEventListener('click', onStartBackup);
 
-    // BACKING_UP 按鈕
-    document.getElementById('btn-cancel-backup')?.addEventListener('click', onCancelBackup);
+    // BACKING_UP
+    document.getElementById('btn-cancel-backup')?.addEventListener('click', () => CancelBackup());
 
-    // DONE 按鈕
-    document.getElementById('btn-open-folder')?.addEventListener('click', onOpenFolder);
+    // DONE
+    document.getElementById('btn-open-folder')?.addEventListener('click', () => {
+        if (backupResult?.backupPath) OpenFolder(backupResult.backupPath);
+    });
+    document.getElementById('btn-sponsor')?.addEventListener('click', () => {
+        OpenURL('https://buymeacoffee.com/ivault');
+    });
     document.getElementById('btn-backup-again')?.addEventListener('click', () => setState('idle'));
 
-    // ERROR 按鈕
-    document.getElementById('btn-retry')?.addEventListener('click', onRetry);
+    // ERROR
+    document.getElementById('btn-retry')?.addEventListener('click', () => {
+        if (currentDevice) setState('ready', currentDevice);
+        else setState('idle');
+    });
     document.getElementById('btn-back-to-idle')?.addEventListener('click', () => setState('idle'));
 }
 
 // ============================================================
-// 事件處理
+// 狀態進入處理
 // ============================================================
 
-// AFC PoC：偵測裝置
-async function onDetectDevice() {
-    const resultEl = document.getElementById('detect-result');
-    resultEl.textContent = '偵測中...';
+async function onEnterDeviceFound(info) {
+    setEl('device-name', info.name || 'iPhone');
+    setEl('device-ios', `iOS ${info.iosVersion || '-'}`);
+    setEl('device-photo-count', '正在驗證裝置...');
+
+    // Windows：先確認 Apple Devices 是否安裝
+    if (platformInfo?.os === 'windows') {
+        try {
+            const installed = await CheckAppleDevicesInstalled();
+            if (!installed) {
+                setState('driver-missing');
+                return;
+            }
+        } catch (e) { /* 繼續 */ }
+    }
+
+    // 檢查信任狀態
     try {
-        const devices = await ListDevices();
-        if (!devices || devices.length === 0) {
-            resultEl.textContent = '未偵測到裝置，請確認 USB 已連接並已信任此電腦';
+        const trusted = await CheckTrustStatus(info.udid);
+        if (!trusted) {
+            setState('trust-guide', info);
             return;
         }
-        const d = devices[0];
-        currentUDID = d.udid;
-        resultEl.textContent = `✅ ${d.name} (${d.model} / iOS ${d.iosVersion})`;
+    } catch (e) { /* 連線失敗也繼續嘗試 */ }
 
-        // 切換到 device-found 狀態
-        document.getElementById('device-name').textContent = d.name || 'iPhone';
-        document.getElementById('device-info').textContent = `${d.model} · iOS ${d.iosVersion} · UDID: ${d.udid}`;
-        setState('device-found');
+    // 背景取得照片數（READY 頁顯示）
+    fetchPhotoCount(info.udid);
 
-        // 背景取得詳細資訊
-        GetDeviceDetail(d.udid).then(detail => {
-            if (!detail) return;
-            const gb = (b) => (b / 1024 / 1024 / 1024).toFixed(1) + ' GB';
-            document.getElementById('device-info').textContent =
-                `${detail.model} · iOS ${detail.iosVersion} · ${detail.photoCount} 張照片 · ${gb(detail.usedSpace)} / ${gb(detail.totalSpace)}`;
-        }).catch(console.error);
-    } catch (e) {
-        resultEl.textContent = `❌ 錯誤：${e}`;
+    setState('ready', info);
+}
+
+function onEnterTrustGuide(info) {
+    // 後端 watchDevices → startTrustPolling 已在背景輪詢
+    // 前端只需等待 device:trust-changed event
+}
+
+async function onEnterReady(info) {
+    setEl('ready-device-name', info.name || 'iPhone');
+
+    // 預設路徑
+    if (!selectedPath) {
+        try {
+            selectedPath = await GetDefaultBackupPath();
+        } catch (e) {}
+    }
+    setEl('backup-path', selectedPath || '-');
+
+    // 磁碟資訊
+    if (selectedPath) {
+        updateDiskInfo(selectedPath);
+    }
+
+    // 估算備份大小
+    if (info.udid && selectedPath) {
+        estimateSize(info.udid, selectedPath);
+    }
+
+    // 還原 HEIC 設定
+    const checkbox = document.getElementById('convert-heic');
+    if (checkbox && appConfig) checkbox.checked = !!appConfig.convertHeic;
+}
+
+function onEnterDone(result) {
+    setEl('done-new-count', fmt(result.newFiles ?? 0));
+    setEl('done-skip-count', fmt(result.skippedFiles ?? 0));
+    setEl('done-fail-count', fmt(result.failedFiles ?? 0));
+
+    const durEl = document.getElementById('done-duration');
+    if (durEl) durEl.textContent = result.duration ? `耗時 ${result.duration}` : '';
+
+    // 失敗數 > 0 時標紅
+    const failEl = document.getElementById('done-fail-count');
+    if (failEl) failEl.classList.toggle('danger', (result.failedFiles ?? 0) > 0);
+
+    // Windows HEIC 提示
+    const heicHint = document.getElementById('heic-hint');
+    if (heicHint) {
+        heicHint.style.display = (platformInfo?.os === 'windows' && result.hasHeic) ? 'block' : 'none';
     }
 }
 
-// AFC PoC：複製第一張照片
-async function onCopyFirstPhoto() {
-    if (!currentUDID) return;
-    const resultEl = document.getElementById('scan-result');
-    resultEl.textContent = '複製中...';
-    try {
-        const result = await CopyFirstPhoto(currentUDID);
-        const kb = (result.bytesCopied / 1024).toFixed(1);
-        resultEl.textContent = `✅ 複製成功！\n檔案：${result.localPath}\n大小：${kb} KB`;
-    } catch (e) {
-        resultEl.textContent = `❌ 錯誤：${e}`;
-    }
+function onEnterError(err) {
+    setEl('error-message', err.message || '發生未預期的錯誤，請重試。');
+    const retryBtn = document.getElementById('btn-retry');
+    if (retryBtn) retryBtn.style.display = err.recoverable !== false ? '' : 'none';
 }
 
-// AFC PoC：掃描 DCIM
-async function onScanDCIM() {
-    if (!currentUDID) return;
-    const resultEl = document.getElementById('scan-result');
-    resultEl.textContent = '掃描中...';
-    try {
-        const files = await ScanDCIM(currentUDID);
-        if (!files || files.length === 0) {
-            resultEl.textContent = '未找到照片';
-            return;
-        }
-        const preview = files.slice(0, 5).map(f => `${f.fileName} (${(f.size/1024).toFixed(0)}KB)`).join('\n');
-        resultEl.textContent = `✅ 共 ${files.length} 個檔案\n${preview}${files.length > 5 ? '\n...' : ''}`;
-    } catch (e) {
-        resultEl.textContent = `❌ 錯誤：${e}`;
-    }
-}
-
-async function onInstallDriver() {
-    // await OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9N");
-    console.log('open apple devices store');
-}
-
-async function onRecheckDriver() {
-    setState('idle');
-}
+// ============================================================
+// 事件處理 — READY 動作
+// ============================================================
 
 async function onSelectFolder() {
-    console.log('select folder');
+    try {
+        const path = await SelectBackupFolder();
+        if (!path) return;
+        selectedPath = path;
+        setEl('backup-path', path);
+        updateDiskInfo(path);
+        if (currentDevice?.udid) estimateSize(currentDevice.udid, path);
+    } catch (e) {}
 }
 
 async function onStartBackup() {
-    setState('backing-up');
+    if (!currentDevice?.udid || !selectedPath) return;
+
+    const btn = document.getElementById('btn-start-backup');
+    if (btn) btn.disabled = true;
+
+    try {
+        const convertHeic = document.getElementById('convert-heic')?.checked ?? false;
+        await StartBackup({
+            deviceUdid:     currentDevice.udid,
+            deviceName:     currentDevice.name || 'iPhone',
+            backupPath:     selectedPath,
+            convertHeic,
+            organizeByDate: true,
+        });
+        setState('backing-up');
+    } catch (e) {
+        setState('error', { code: 'UNKNOWN_ERROR', message: String(e), recoverable: true });
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
-async function onCancelBackup() {
-    console.log('cancel backup');
-    setState('idle');
+// ============================================================
+// 進度更新
+// ============================================================
+
+function updateProgressUI(p) {
+    const pct = (p.percent ?? 0).toFixed(1);
+    const bar = document.getElementById('backup-progress-bar');
+    if (bar) bar.style.width = pct + '%';
+
+    setEl('backup-percent', pct + '%');
+    setEl('backup-speed', p.speedBps > 0 ? formatBytes(p.speedBps) + '/s' : '-');
+    setEl('backup-eta', p.eta || '-');
+    setEl('backup-current-file', p.currentFile ? `正在備份 ${p.currentFile}` : '掃描照片清單...');
+    setEl('backup-done-count', `${fmt(p.doneFiles ?? 0)} / ${fmt(p.totalFiles ?? 0)} 張`);
+
+    const skipEl = document.getElementById('backup-skip-count');
+    if (skipEl) {
+        const sk = p.skippedFiles ?? 0;
+        skipEl.textContent = sk > 0 ? `(跳過 ${fmt(sk)} 張已備份)` : '';
+    }
 }
 
-async function onOpenFolder() {
-    console.log('open folder');
+// ============================================================
+// 輔助函式
+// ============================================================
+
+async function fetchPhotoCount(udid) {
+    try {
+        const detail = await GetDeviceDetail(udid);
+        if (!detail) return;
+        if (currentDevice) currentDevice.photoCount = detail.photoCount;
+        // 更新 READY 頁照片數
+        const readyCount = document.getElementById('ready-photo-count');
+        if (readyCount && currentState === 'ready') {
+            readyCount.textContent = `${fmt(detail.photoCount)} 張照片`;
+        }
+    } catch (e) {}
 }
 
-async function onRetry() {
-    setState('idle');
+async function updateDiskInfo(path) {
+    try {
+        const disk = await GetDiskInfo(path);
+        setEl('disk-free', formatBytes(disk.freeSpace) + ' 可用');
+    } catch (e) {
+        setEl('disk-free', '-');
+    }
+}
+
+async function estimateSize(udid, path) {
+    try {
+        const bytes = await EstimateBackupSize(udid, path);
+        setEl('estimate-size', formatBytes(bytes));
+    } catch (e) {
+        setEl('estimate-size', '-');
+    }
+}
+
+function setEl(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+function fmt(n) {
+    return Number(n).toLocaleString('zh-Hant');
+}
+
+function formatBytes(bytes) {
+    if (!bytes || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
 }
 
 // ============================================================
