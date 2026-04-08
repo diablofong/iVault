@@ -2,8 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
+	"ivault/internal/backup"
 	"ivault/internal/device"
+
+	"github.com/danielpaulus/go-ios/ios"
+	"github.com/danielpaulus/go-ios/ios/afc"
 )
 
 // App struct
@@ -38,4 +45,38 @@ func (a *App) GetDeviceDetail(udid string) (*device.DeviceDetail, error) {
 // ScanDCIM 掃描裝置 DCIM 目錄，回傳照片清單
 func (a *App) ScanDCIM(udid string) ([]device.PhotoFile, error) {
 	return device.ScanDCIM(udid)
+}
+
+// CopyFirstPhoto PoC：複製 DCIM 第一張照片到本機 Pictures\iVault_test\
+func (a *App) CopyFirstPhoto(udid string) (*backup.CopyResult, error) {
+	photos, err := device.ScanDCIM(udid)
+	if err != nil {
+		return nil, err
+	}
+	if len(photos) == 0 {
+		return nil, fmt.Errorf("no photos found")
+	}
+
+	deviceList, err := ios.ListDevices()
+	if err != nil {
+		return nil, err
+	}
+	var d ios.DeviceEntry
+	for _, dev := range deviceList.DeviceList {
+		if dev.Properties.SerialNumber == udid {
+			d = dev
+			break
+		}
+	}
+
+	afcClient, err := afc.New(d)
+	if err != nil {
+		return nil, fmt.Errorf("afc connect: %w", err)
+	}
+	defer afcClient.Close()
+
+	home, _ := os.UserHomeDir()
+	destDir := filepath.Join(home, "Pictures", "iVault_test")
+
+	return backup.CopyFile(afcClient, photos[0].RemotePath, destDir)
 }

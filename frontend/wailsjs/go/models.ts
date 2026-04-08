@@ -1,3 +1,24 @@
+export namespace backup {
+	
+	export class CopyResult {
+	    remotePath: string;
+	    localPath: string;
+	    bytesCopied: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CopyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.remotePath = source["remotePath"];
+	        this.localPath = source["localPath"];
+	        this.bytesCopied = source["bytesCopied"];
+	    }
+	}
+
+}
+
 export namespace device {
 	
 	export class DeviceDetail {

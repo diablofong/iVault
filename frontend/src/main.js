@@ -1,7 +1,7 @@
 import './style.css';
 import './app.css';
 import { WindowMinimise, Quit } from '../wailsjs/runtime/runtime';
-import { ListDevices, GetDeviceDetail, ScanDCIM } from '../wailsjs/go/main/App';
+import { ListDevices, GetDeviceDetail, ScanDCIM, CopyFirstPhoto } from '../wailsjs/go/main/App';
 
 // ============================================================
 // 狀態機
@@ -56,6 +56,7 @@ async function init() {
 
     // DEVICE_FOUND：掃描 DCIM（AFC PoC）
     document.getElementById('btn-scan-dcim')?.addEventListener('click', onScanDCIM);
+    document.getElementById('btn-copy-first')?.addEventListener('click', onCopyFirstPhoto);
 
     // DRIVER_MISSING 按鈕
     document.getElementById('btn-install-driver')?.addEventListener('click', onInstallDriver);
@@ -107,6 +108,20 @@ async function onDetectDevice() {
             document.getElementById('device-info').textContent =
                 `${detail.model} · iOS ${detail.iosVersion} · ${detail.photoCount} 張照片 · ${gb(detail.usedSpace)} / ${gb(detail.totalSpace)}`;
         }).catch(console.error);
+    } catch (e) {
+        resultEl.textContent = `❌ 錯誤：${e}`;
+    }
+}
+
+// AFC PoC：複製第一張照片
+async function onCopyFirstPhoto() {
+    if (!currentUDID) return;
+    const resultEl = document.getElementById('scan-result');
+    resultEl.textContent = '複製中...';
+    try {
+        const result = await CopyFirstPhoto(currentUDID);
+        const kb = (result.bytesCopied / 1024).toFixed(1);
+        resultEl.textContent = `✅ 複製成功！\n檔案：${result.localPath}\n大小：${kb} KB`;
     } catch (e) {
         resultEl.textContent = `❌ 錯誤：${e}`;
     }
