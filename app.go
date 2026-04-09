@@ -99,12 +99,9 @@ func (a *App) CheckTrustStatus(udid string) (bool, error) {
 	return false, fmt.Errorf("device not found: %s", udid)
 }
 
-// CheckAppleDevicesInstalled Windows 專用：檢查 Apple Devices 是否已安裝
+// CheckAppleDevicesInstalled Windows 專用：每次都做即時偵測（不用快取）
 func (a *App) CheckAppleDevicesInstalled() bool {
-	if a.platformInfo == nil {
-		return false
-	}
-	return a.platformInfo.AppleDevicesInstalled
+	return platform.RecheckAppleDevices()
 }
 
 // InstallAppleDevices Windows 專用：嘗試安裝 Apple Devices
@@ -339,11 +336,39 @@ func (a *App) CopyFirstPhoto(udid string) (*backup.CopyResult, error) {
 // 後台 Goroutine
 // ============================================================
 
-// watchDevices 使用 ios.Listen() 監聽裝置熱插拔事件
+// watchDevices 使用 ios.Listen() 監聽裝置熱插拔事件。
+// Windows 上若 Apple Devices 未安裝，ios.Listen() 會靜默失敗；
+// 此函式主動偵測並透過事件通知前端，同時持續輪詢直到驅動裝好。
 func (a *App) watchDevices() {
+	driverWasMissing := false
+
 	for {
+		// Windows 專用：Apple Devices 前置條件檢查
+		if a.platformInfo != nil && a.platformInfo.OS == "windows" {
+			if !platform.RecheckAppleDevices() {
+				if !driverWasMissing {
+					// 等前端 ready 後再發事件（避免前端尚未掛載監聽器）
+					time.Sleep(600 * time.Millisecond)
+					wailsRuntime.EventsEmit(a.ctx, "driver:required", nil)
+					driverWasMissing = true
+				}
+				time.Sleep(3 * time.Second)
+				continue
+			}
+			// 驅動剛裝好（missing → available）
+			if driverWasMissing {
+				a.mu.Lock()
+				if a.platformInfo != nil {
+					a.platformInfo.AppleDevicesInstalled = true
+				}
+				a.mu.Unlock()
+				wailsRuntime.EventsEmit(a.ctx, "driver:installed", nil)
+				driverWasMissing = false
+			}
+		}
+
 		a.runDeviceListener()
-		// 若 listener 斷掉（usbmuxd 重啟等），等 3 秒後重試
+		// listener 斷掉（usbmuxd 重啟、裝置拔除等）→ 等 3 秒後重試
 		time.Sleep(3 * time.Second)
 	}
 }

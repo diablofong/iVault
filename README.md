@@ -13,6 +13,8 @@
 - **跨平台**：macOS 原生支援，Windows 需搭配免費的 Apple Devices App
 - **簡單**：非技術用戶也能在 5 分鐘內完成首次備份
 - **斷點續傳**：中途中斷可繼續，跳過已備份檔案
+- **按日期整理**：自動讀取 EXIF，照片依拍攝月份分類至 `YYYY-MM` 資料夾
+- **中英文切換**：介面支援繁體中文 / English，語言偏好本機儲存
 
 ## 系統需求
 
@@ -63,7 +65,8 @@ wails build
 Go + Wails v2（UI Shell）
 ├── go-ios        → iPhone USB 通訊（AFC 協定）
 ├── goheif        → HEIC 格式縮圖處理
-└── net/http      → WebSocket 即時進度推送
+├── goexif        → 讀取 EXIF 拍攝日期，按月份自動分類
+└── Wails Events  → WebSocket 即時進度推送（後端 push）
 ```
 
 ## 競品比較
@@ -78,9 +81,9 @@ Go + Wails v2（UI Shell）
 ## 路線圖
 
 - [x] 專案初始化
-- [ ] M0：go-ios AFC 技術驗證（Windows + Mac）
-- [ ] M1：核心備份功能
-- [ ] M2：使用者體驗優化
+- [x] M0：go-ios AFC 技術驗證（Windows + Mac）
+- [x] M1：核心備份功能（AFC 複製、斷點續傳、即時進度）
+- [x] M2：使用者體驗優化（信任引導、HEIC 轉檔、錯誤處理、Linear 設計、i18n、EXIF 日期分類）
 - [ ] M3：打包發布（Windows .exe + Mac .dmg）
 
 ## 贊助

@@ -34,6 +34,7 @@ func detectPlatformSpecific(info *Info) {
 }
 
 func checkAppleDevices() bool {
+	// 方法 1：傳統 iTunes Win32 安裝路徑（最快速，路徑存在即可用）
 	paths := []string{
 		`C:\Program Files\Common Files\Apple\Mobile Device Support`,
 		`C:\Program Files (x86)\Common Files\Apple\Mobile Device Support`,
@@ -43,6 +44,15 @@ func checkAppleDevices() bool {
 			return true
 		}
 	}
+
+	// 方法 2：Apple Mobile Device Service 必須是 RUNNING 狀態。
+	// ⚠️  不能只看服務名稱是否存在（安裝進行中就會寫入）或 Registry（更早），
+	//     必須等到 STATE : 4 RUNNING 才代表 Apple Devices / iTunes 真正可用。
+	out, err := exec.Command("sc", "query", "Apple Mobile Device Service").Output()
+	if err == nil && strings.Contains(string(out), "RUNNING") {
+		return true
+	}
+
 	return false
 }
 

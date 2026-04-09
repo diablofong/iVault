@@ -26,20 +26,48 @@ func NewOrganizer(backupPath, deviceName string, organizeByDate bool) *Organizer
 	}
 }
 
-// ResolveLocalPath 決定檔案的本機完整路徑（含衝突處理）
-// 結構：{backupPath}/{deviceName}/{year-month}/{filename}
+// ResolveLocalPath 決定檔案的暫存本機路徑（尚未讀 EXIF）
+// 結構：{backupPath}/{deviceName}/{filename}（flat，之後由 ResolveByDate 移動）
 func (o *Organizer) ResolveLocalPath(file device.PhotoFile) string {
+	dir := filepath.Join(o.backupPath, o.deviceName, ".staging")
+	candidate := filepath.Join(dir, file.FileName)
+	return o.resolveConflict(candidate)
+}
+
+// ResolveByDate 根據 EXIF 拍攝日期決定最終路徑並移動檔案。
+// 若 organizeByDate 為 false，直接移動到 {backupPath}/{deviceName}/ 下。
+// 若移動失敗，保留在 staging 路徑（不影響備份正確性）。
+// 回傳最終實際路徑。
+func (o *Organizer) ResolveByDate(file device.PhotoFile, stagingPath string, shootDate time.Time) string {
 	var dir string
-	if o.organizeByDate && file.ModTime > 0 {
-		yearMonth := time.Unix(file.ModTime, 0).Format("2006-01")
+	if o.organizeByDate {
+		yearMonth := shootDate.Format("2006-01")
 		dir = filepath.Join(o.backupPath, o.deviceName, yearMonth)
-	} else if o.organizeByDate {
-		dir = filepath.Join(o.backupPath, o.deviceName, "Unknown Date")
 	} else {
 		dir = filepath.Join(o.backupPath, o.deviceName)
 	}
-	candidate := filepath.Join(dir, file.FileName)
+
+	finalPath := o.resolveConflictInDir(dir, file.FileName)
+
+	if err := moveFile(stagingPath, finalPath); err != nil {
+		// 移動失敗，保留 staging 路徑（仍算備份成功）
+		return stagingPath
+	}
+	return finalPath
+}
+
+// resolveConflictInDir 在指定目錄內尋找不衝突的路徑
+func (o *Organizer) resolveConflictInDir(dir, fileName string) string {
+	candidate := filepath.Join(dir, fileName)
 	return o.resolveConflict(candidate)
+}
+
+// moveFile 建立目標目錄並移動檔案
+func moveFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	return os.Rename(src, dst)
 }
 
 // RelativeLocalPath 回傳相對於 backupPath 的路徑（存入 manifest）

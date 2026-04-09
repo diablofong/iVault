@@ -131,6 +131,14 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 			continue
 		}
 
+		// 讀 EXIF 取得拍攝日期，移動到正確的 YYYY-MM 目錄
+		shootDate, ok := ReadShootDate(localPath)
+		if !ok {
+			shootDate = time.Now() // HEIC / 無 EXIF → 用備份當天日期
+		}
+		localPath = e.organizer.ResolveByDate(file, localPath, shootDate)
+		localRelPath = e.organizer.RelativeLocalPath(localPath)
+
 		e.manifest.MarkDone(file, localRelPath)
 		e.speed.Add(n, elapsed)
 		doneBytes += n

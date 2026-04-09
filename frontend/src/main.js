@@ -18,6 +18,7 @@ import {
     OpenURL,
     InstallAppleDevices,
 } from '../wailsjs/go/main/App';
+import { t, renderAll, setLang, getLang } from './i18n.js';
 
 // ============================================================
 // 狀態機
@@ -38,25 +39,11 @@ function setState(newState, data = {}) {
         return;
     }
 
-    // 淡出目前視圖
     if (currentState) {
-        const prev = document.getElementById(`view-${currentState}`);
-        if (prev) {
-            prev.classList.remove('visible');
-            setTimeout(() => prev.classList.remove('active'), 200);
-        }
+        document.getElementById(`view-${currentState}`)?.classList.remove('active');
     }
-
     currentState = newState;
-
-    // 淡入新視圖
-    const next = document.getElementById(`view-${newState}`);
-    if (next) {
-        next.classList.add('active');
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => next.classList.add('visible'));
-        });
-    }
+    document.getElementById(`view-${newState}`)?.classList.add('active');
 
     onEnterState(newState, data);
 }
@@ -88,11 +75,25 @@ async function init() {
         console.error('init:', e);
     }
 
+    // i18n 初始渲染
+    renderAll();
+
     // 註冊 Wails 事件
     registerEvents();
 
     // 綁定按鈕
     bindHandlers();
+
+    // Windows：主動確認 Apple Devices 安裝狀態，不等裝置連線觸發
+    if (platformInfo?.os === 'windows') {
+        try {
+            const installed = await CheckAppleDevicesInstalled();
+            if (!installed) {
+                setState('driver-missing');
+                return; // 等裝好後 watchDevices 會 emit driver:installed
+            }
+        } catch (e) { /* 無法判斷時繼續走正常流程 */ }
+    }
 
     // 檢查是否已有裝置連線（app 重啟場景）
     try {
@@ -155,8 +156,13 @@ function registerEvents() {
         if (btn) btn.style.display = 'none';
         if (progress) progress.style.display = '';
         if (label) {
-            label.textContent = data?.method === 'winget' ? '正在自動安裝...' : '請在 Microsoft Store 完成安裝';
+            label.textContent = data?.method === 'winget' ? t('driver.installing') : t('driver.store');
         }
+    });
+
+    // Apple Devices 尚未安裝（watchDevices 偵測到）
+    EventsOn('driver:required', () => {
+        if (currentState !== 'driver-missing') setState('driver-missing');
     });
 
     EventsOn('driver:installed', () => {
@@ -171,23 +177,22 @@ function registerEvents() {
         const label = document.getElementById('heic-convert-label');
         if (section) section.style.display = '';
         if (bar) bar.style.width = (data.percent ?? 0).toFixed(1) + '%';
-        if (label) label.textContent = `正在轉換 HEIC... ${data.done ?? 0} / ${data.total ?? 0}`;
+        if (label) label.textContent = `${t('heic.converting')} ${data.done ?? 0} / ${data.total ?? 0}`;
     });
 
     EventsOn('heic:complete', (data) => {
         const section = document.getElementById('heic-convert-section');
         const label = document.getElementById('heic-convert-label');
         if (data?.converted > 0) {
-            if (label) label.textContent = `已轉換 ${fmt(data.converted)} 張 JPEG`;
+            if (label) label.textContent = `${t('heic.done')} ${fmt(data.converted)} ${t('heic.unit')}`;
         } else {
             if (section) section.style.display = 'none';
         }
     });
 
     EventsOn('driver:install-failed', () => {
-        // winget 兩步都失敗，已 fallback 到 MS Store，更新提示文字
         const label = document.getElementById('install-status-label');
-        if (label) label.textContent = '請在 Microsoft Store 完成安裝';
+        if (label) label.textContent = t('driver.store');
     });
 }
 
@@ -195,6 +200,13 @@ function registerEvents() {
 // 按鈕綁定
 // ============================================================
 function bindHandlers() {
+    // 語言切換
+    document.getElementById('btn-lang-toggle')?.addEventListener('click', () => {
+        setLang(getLang() === 'zh-TW' ? 'en' : 'zh-TW');
+        // 重新渲染動態欄位
+        if (currentState === 'ready') onEnterReady(currentDevice || {});
+    });
+
     // DRIVER_MISSING
     document.getElementById('btn-install-driver')?.addEventListener('click', () => InstallAppleDevices());
 
@@ -214,12 +226,30 @@ function bindHandlers() {
     });
     document.getElementById('btn-backup-again')?.addEventListener('click', () => setState('idle'));
 
+    // 失敗清單展開/收合
+    document.getElementById('btn-toggle-failed')?.addEventListener('click', () => {
+        const list = document.getElementById('failed-list');
+        const icon = document.getElementById('failed-toggle-icon');
+        if (!list) return;
+        const expanded = list.style.display !== 'none';
+        list.style.display = expanded ? 'none' : '';
+        if (icon) icon.textContent = expanded ? '▶' : '▼';
+    });
+
+    // HEIC 一鍵安裝（Windows HEIF 擴充）
+    document.getElementById('btn-install-heic')?.addEventListener('click', () => {
+        OpenURL('ms-windows-store://pdp?productId=9PMMSR1CGPWG');
+    });
+
     // ERROR
     document.getElementById('btn-retry')?.addEventListener('click', () => {
         if (currentDevice) setState('ready', currentDevice);
         else setState('idle');
     });
     document.getElementById('btn-back-to-idle')?.addEventListener('click', () => setState('idle'));
+    document.getElementById('btn-report-issue')?.addEventListener('click', () => {
+        OpenURL('https://github.com/diablofong/ivault/issues/new');
+    });
 }
 
 // ============================================================
@@ -229,7 +259,7 @@ function bindHandlers() {
 async function onEnterDeviceFound(info) {
     setEl('device-name', info.name || 'iPhone');
     setEl('device-ios', `iOS ${info.iosVersion || '-'}`);
-    setEl('device-photo-count', '正在驗證裝置...');
+    setEl('device-photo-count', t('device.reading'));
 
     // Windows：先確認 Apple Devices 是否安裝
     if (platformInfo?.os === 'windows') {
@@ -286,6 +316,20 @@ async function onEnterReady(info) {
     // 還原 HEIC 設定
     const checkbox = document.getElementById('convert-heic');
     if (checkbox && appConfig) checkbox.checked = !!appConfig.convertHeic;
+
+    // 上次備份資訊
+    const lastBackupRow = document.getElementById('last-backup-row');
+    const lastBackupInfo = document.getElementById('last-backup-info');
+    if (appConfig?.history?.length > 0) {
+        const rec = appConfig.history[0];
+        const dateStr = formatRelativeDate(rec.date);
+        const countStr = `${fmt(rec.newFiles)} ${t('ready.files_count')}`;
+        if (lastBackupInfo) lastBackupInfo.textContent = `${dateStr}，共 ${countStr}`;
+        if (lastBackupRow) lastBackupRow.style.display = '';
+    } else {
+        if (lastBackupInfo) lastBackupInfo.textContent = t('ready.no_backup');
+        if (lastBackupRow) lastBackupRow.style.display = '';
+    }
 }
 
 function onEnterDone(result) {
@@ -294,23 +338,67 @@ function onEnterDone(result) {
     setEl('done-fail-count', fmt(result.failedFiles ?? 0));
 
     const durEl = document.getElementById('done-duration');
-    if (durEl) durEl.textContent = result.duration ? `耗時 ${result.duration}` : '';
+    if (durEl) durEl.textContent = result.duration ? `${t('done.duration')} ${result.duration}` : '';
 
     // 失敗數 > 0 時標紅
     const failEl = document.getElementById('done-fail-count');
     if (failEl) failEl.classList.toggle('danger', (result.failedFiles ?? 0) > 0);
 
+    // 備份大小
+    const totalSizeEl = document.getElementById('done-total-size');
+    const totalSizeValueEl = document.getElementById('done-total-size-value');
+    if (result.totalBytes > 0) {
+        if (totalSizeValueEl) totalSizeValueEl.textContent = formatBytes(result.totalBytes);
+        if (totalSizeEl) totalSizeEl.style.display = '';
+    } else {
+        if (totalSizeEl) totalSizeEl.style.display = 'none';
+    }
+
+    // 失敗清單（可展開）
+    const failedSection = document.getElementById('failed-section');
+    const failedList = document.getElementById('failed-list');
+    const failedCount = result.failedFiles ?? 0;
+    if (failedSection) failedSection.style.display = failedCount > 0 ? '' : 'none';
+    setEl('failed-detail-count', fmt(failedCount));
+    if (failedList && failedCount > 0 && Array.isArray(result.failedList)) {
+        failedList.innerHTML = '';
+        failedList.style.display = 'none'; // 預設收合
+        document.getElementById('failed-toggle-icon').textContent = '▶';
+        result.failedList.forEach(f => {
+            const row = document.createElement('div');
+            row.className = 'failed-item';
+            row.innerHTML = `<span class="failed-name">${escapeHtml(f.fileName)}</span><span class="failed-reason">${escapeHtml(f.reason)}</span>`;
+            failedList.appendChild(row);
+        });
+    }
+
     // Windows HEIC 提示
     const heicHint = document.getElementById('heic-hint');
     if (heicHint) {
-        heicHint.style.display = (platformInfo?.os === 'windows' && result.hasHeic) ? 'block' : 'none';
+        heicHint.style.display = (platformInfo?.os === 'windows' && result.hasHeic) ? '' : 'none';
     }
 }
 
 function onEnterError(err) {
+    const code = err.code || 'UNKNOWN_ERROR';
+
+    // DEVICE_DISCONNECTED → 1.5 秒後自動回 IDLE
+    if (code === 'DEVICE_DISCONNECTED') {
+        setEl('error-message', err.message || 'iPhone 已斷開連線');
+        document.getElementById('btn-retry')?.style && (document.getElementById('btn-retry').style.display = 'none');
+        document.getElementById('btn-report-issue')?.style && (document.getElementById('btn-report-issue').style.display = 'none');
+        setTimeout(() => setState('idle'), 1500);
+        return;
+    }
+
     setEl('error-message', err.message || '發生未預期的錯誤，請重試。');
+
     const retryBtn = document.getElementById('btn-retry');
     if (retryBtn) retryBtn.style.display = err.recoverable !== false ? '' : 'none';
+
+    // UNKNOWN_ERROR → 顯示回報問題按鈕
+    const issueBtn = document.getElementById('btn-report-issue');
+    if (issueBtn) issueBtn.style.display = code === 'UNKNOWN_ERROR' ? '' : 'none';
 }
 
 // ============================================================
@@ -363,13 +451,15 @@ function updateProgressUI(p) {
     setEl('backup-percent', pct + '%');
     setEl('backup-speed', p.speedBps > 0 ? formatBytes(p.speedBps) + '/s' : '-');
     setEl('backup-eta', p.eta || '-');
-    setEl('backup-current-file', p.currentFile ? `正在備份 ${p.currentFile}` : '掃描照片清單...');
-    setEl('backup-done-count', `${fmt(p.doneFiles ?? 0)} / ${fmt(p.totalFiles ?? 0)} 張`);
+    setEl('backup-current-file', p.currentFile
+        ? `${t('backup.current')} ${p.currentFile}`
+        : t('backup.scanning'));
+    setEl('backup-done-count', `${fmt(p.doneFiles ?? 0)} / ${fmt(p.totalFiles ?? 0)} ${t('backup.sheets')}`);
 
     const skipEl = document.getElementById('backup-skip-count');
     if (skipEl) {
         const sk = p.skippedFiles ?? 0;
-        skipEl.textContent = sk > 0 ? `(跳過 ${fmt(sk)} 張已備份)` : '';
+        skipEl.textContent = sk > 0 ? t('backup.skipped').replace('{n}', fmt(sk)) : '';
     }
 }
 
@@ -385,7 +475,7 @@ async function fetchPhotoCount(udid) {
         // 更新 READY 頁照片數
         const readyCount = document.getElementById('ready-photo-count');
         if (readyCount && currentState === 'ready') {
-            readyCount.textContent = `${fmt(detail.photoCount)} 張照片`;
+            readyCount.textContent = `${fmt(detail.photoCount)} ${t('ready.files_count')}`;
         }
     } catch (e) {}
 }
@@ -417,11 +507,34 @@ function fmt(n) {
     return Number(n).toLocaleString('zh-Hant');
 }
 
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function formatBytes(bytes) {
     if (!bytes || bytes <= 0) return '0 B';
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
     return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+}
+
+function formatRelativeDate(isoStr) {
+    if (!isoStr) return '';
+    try {
+        const d = new Date(isoStr);
+        const diffMs = Date.now() - d.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const lang = getLang();
+        if (diffDays === 0) return lang === 'zh-TW' ? '今天' : 'Today';
+        if (diffDays === 1) return lang === 'zh-TW' ? '昨天' : 'Yesterday';
+        if (diffDays < 30) return lang === 'zh-TW' ? `${diffDays} 天前` : `${diffDays} days ago`;
+        const diffMonths = Math.floor(diffDays / 30);
+        return lang === 'zh-TW' ? `${diffMonths} 個月前` : `${diffMonths} months ago`;
+    } catch (e) { return isoStr; }
 }
 
 // ============================================================
