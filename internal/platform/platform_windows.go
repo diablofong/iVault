@@ -48,19 +48,19 @@ func checkAppleDevices() bool {
 		}
 	}
 
-	// 方法 2：sc query 判斷服務狀態
-	// MS Store 版 Apple Devices 安裝的是 USBAAPL64（Apple Mobile USB Driver）
-	// iTunes 版安裝的是 Apple Mobile Device Service
-	// 只要 SERVICE_NAME 存在（含 STOPPED 狀態）即視為已安裝
-	serviceNames := []string{
-		"USBAAPL64",                  // MS Store Apple Devices
-		"Apple Mobile Device Service", // iTunes (legacy)
+	// 方法 2：MS Store Apple Devices — 查 AppxPackage
+	// USBAAPL64 kernel driver 解安裝後會殘留為 STOPPED，不能作為判斷依據
+	// PackageFamilyName 有值才代表真正安裝中
+	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName").Output()
+	if err == nil && strings.TrimSpace(string(out)) != "" {
+		return true
 	}
-	for _, svc := range serviceNames {
-		out, err := exec.Command("sc", "query", svc).Output()
-		if err == nil && strings.Contains(string(out), "SERVICE_NAME") {
-			return true
-		}
+
+	// 方法 3：iTunes legacy service（sc.exe 避免 PowerShell 別名問題）
+	out2, err2 := exec.Command("sc.exe", "query", "Apple Mobile Device Service").Output()
+	if err2 == nil && strings.Contains(string(out2), "SERVICE_NAME") {
+		return true
 	}
 
 	return false
