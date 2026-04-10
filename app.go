@@ -335,6 +335,10 @@ func (a *App) watchDevices() {
 
 			// [2] AMDS 確認：確保 AppleMobileDeviceProcess.exe 已在 listening port 27015
 			// MS Store 版 Apple Devices 不像 iTunes 開機自動常駐，需手動喚起
+			if !platform.IsAMDSReady() {
+				// 通知前端：即將喚起 Apple Devices UI，讓使用者有心理準備
+				wailsRuntime.EventsEmit(a.ctx, "amds:starting", nil)
+			}
 			if err := platform.EnsureAMDSRunning(); err != nil {
 				if !amdsFailNotified {
 					wailsRuntime.EventsEmit(a.ctx, "amds:start_failed", map[string]any{

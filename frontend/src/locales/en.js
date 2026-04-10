@@ -3,7 +3,8 @@ export default {
     'idle.title':     'Connect your iPhone',
     'idle.desc':      'Use a USB cable to connect your iPhone to this computer',
     'idle.hint':      'Requires iOS 14 or later',
-    'idle.privacy':   'Local backup only — your photos stay on this computer, never uploaded',
+    'idle.privacy':        'Local backup only — your photos stay on this computer, never uploaded',
+    'idle.amds_starting':  'Starting Apple Devices service, the app may briefly appear then close...',
 
     // DEVICE_FOUND
     'device.reading': 'Verifying device...',

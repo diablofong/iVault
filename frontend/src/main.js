@@ -45,6 +45,12 @@ function setState(newState, data = {}) {
     currentState = newState;
     document.getElementById(`view-${newState}`)?.classList.add('active');
 
+    // AMDS 啟動提示只在 IDLE 時顯示，切換到其他狀態時隱藏
+    if (newState !== 'idle') {
+        const amdsEl = document.getElementById('amds-status');
+        if (amdsEl) amdsEl.style.display = 'none';
+    }
+
     onEnterState(newState, data);
 }
 
@@ -169,6 +175,12 @@ function registerEvents() {
         if (pending) pending.style.display = 'none';
         if (initial) initial.style.display = 'none';
         if (success) success.style.display = '';
+    });
+
+    // AMDS 正在啟動：Apple Devices UI 即將彈出，在 IDLE 畫面顯示提示
+    EventsOn('amds:starting', () => {
+        const el = document.getElementById('amds-status');
+        if (el) el.style.display = '';
     });
 
     // AMDS（AppleMobileDeviceProcess）啟動失敗

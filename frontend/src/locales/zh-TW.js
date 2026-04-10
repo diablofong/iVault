@@ -3,7 +3,8 @@ export default {
     'idle.title':     '請連接 iPhone',
     'idle.desc':      '使用 USB 線將 iPhone 連接到電腦',
     'idle.hint':      '支援 iOS 14 以上',
-    'idle.privacy':   '本機備份，不上雲 · 照片不會從 iPhone 刪除',
+    'idle.privacy':        '本機備份，不上雲 · 照片不會從 iPhone 刪除',
+    'idle.amds_starting':  '正在啟動 Apple Devices 服務，畫面可能短暫出現後自動關閉...',
 
     // DEVICE_FOUND
     'device.reading': '正在驗證裝置...',
