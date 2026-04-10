@@ -3,11 +3,14 @@
 package platform
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -45,12 +48,19 @@ func checkAppleDevices() bool {
 		}
 	}
 
-	// 方法 2：Apple Mobile Device Service 必須是 RUNNING 狀態。
-	// ⚠️  不能只看服務名稱是否存在（安裝進行中就會寫入）或 Registry（更早），
-	//     必須等到 STATE : 4 RUNNING 才代表 Apple Devices / iTunes 真正可用。
-	out, err := exec.Command("sc", "query", "Apple Mobile Device Service").Output()
-	if err == nil && strings.Contains(string(out), "RUNNING") {
-		return true
+	// 方法 2：sc query 判斷服務狀態
+	// MS Store 版 Apple Devices 安裝的是 USBAAPL64（Apple Mobile USB Driver）
+	// iTunes 版安裝的是 Apple Mobile Device Service
+	// 只要 SERVICE_NAME 存在（含 STOPPED 狀態）即視為已安裝
+	serviceNames := []string{
+		"USBAAPL64",                  // MS Store Apple Devices
+		"Apple Mobile Device Service", // iTunes (legacy)
+	}
+	for _, svc := range serviceNames {
+		out, err := exec.Command("sc", "query", svc).Output()
+		if err == nil && strings.Contains(string(out), "SERVICE_NAME") {
+			return true
+		}
 	}
 
 	return false
@@ -150,6 +160,114 @@ func InstallAppleDevicesViaWinget() error {
 // RecheckAppleDevices 重新偵測 Apple Devices 安裝狀態（不使用快取）
 func RecheckAppleDevices() bool {
 	return checkAppleDevices()
+}
+
+// DetectInstallStage 偵測 Apple Devices 安裝進度階段
+// 回傳："downloading" | "installing" | "starting"
+func DetectInstallStage() string {
+	out, err := exec.Command("sc", "query", "Apple Mobile Device Service").Output()
+	if err != nil {
+		// 服務尚未寫入 = 下載中
+		return "downloading"
+	}
+	s := string(out)
+	if strings.Contains(s, "RUNNING") || strings.Contains(s, "START_PENDING") {
+		return "starting"
+	}
+	if strings.Contains(s, "SERVICE_NAME") {
+		// 服務已存在但尚未啟動
+		return "installing"
+	}
+	return "downloading"
+}
+
+// WMIDetectIPhone 透過 WMI 偵測已連接的 iPhone（不需要 Apple Devices 驅動）
+// 回傳裝置名稱（如 "Apple iPhone"），未偵測到則回傳空字串
+func WMIDetectIPhone() string {
+	out, err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
+		"(Get-WmiObject Win32_PnPEntity | Where-Object { $_.Name -like '*iPhone*' } | Select-Object -First 1 -ExpandProperty Name)").Output()
+	if err != nil {
+		return ""
+	}
+	name := strings.TrimSpace(string(out))
+	if strings.Contains(name, "iPhone") {
+		return name
+	}
+	return ""
+}
+
+// IsAMDSReady 檢查 Apple Mobile Device Service 是否正在 listening port 27015。
+// go-ios 透過此 port 與 iOS 裝置通訊。
+// MS Store 版 Apple Devices 的 AppleMobileDeviceProcess.exe 提供此服務，
+// 但只有 Apple Devices UI 被啟動過後才會運行（見 BUG-002 文件）。
+func IsAMDSReady() bool {
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:27015", 300*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+// EnsureAMDSRunning 確保 AMDS 背景服務運行中。
+// 流程：
+//  1. 若 port 27015 已 listening → 回 nil
+//  2. 找 Apple Devices AUMID
+//  3. explorer.exe shell:AppsFolder\{AUMID} 喚起
+//  4. 輪詢 port 27015 最多 8s
+//  5. 偵測到就緒 → 背景 goroutine kill UI → 回 nil
+//  6. 超時 → 回 error
+func EnsureAMDSRunning() error {
+	if IsAMDSReady() {
+		return nil
+	}
+
+	aumid, err := findAppleDevicesAUMID()
+	if err != nil {
+		return fmt.Errorf("find Apple Devices AUMID: %w", err)
+	}
+
+	// 用 explorer.exe 走 UWP activation path
+	// 不能直接 exec AppleMobileDeviceLauncher.exe（WindowsApps ACL 會拒絕）
+	if err := exec.Command("explorer.exe", "shell:AppsFolder\\"+aumid).Start(); err != nil {
+		return fmt.Errorf("launch Apple Devices: %w", err)
+	}
+
+	// 輪詢最多 8 秒
+	deadline := time.Now().Add(8 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(500 * time.Millisecond)
+		if IsAMDSReady() {
+			// 背景 goroutine 延遲 kill UI，不阻塞呼叫端
+			go killAppleDevicesUI()
+			return nil
+		}
+	}
+
+	return fmt.Errorf("AMDS did not start within 8s (port 27015 never opened)")
+}
+
+// findAppleDevicesAUMID 動態取得 Apple Devices 的 AppUserModelId。
+// 不寫死 package family name，避免 Apple 改版後失效。
+// 格式：{PackageFamilyName}!App，例如 AppleInc.AppleDevices_nzyj5cx40ttqa!App
+func findAppleDevicesAUMID() (string, error) {
+	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName").Output()
+	if err != nil {
+		return "", err
+	}
+	familyName := strings.TrimSpace(string(out))
+	if familyName == "" {
+		return "", fmt.Errorf("Apple Devices package not installed")
+	}
+	return familyName + "!App", nil
+}
+
+// killAppleDevicesUI 關閉 Apple Devices UI 窗，保留背景 AppleMobileDeviceProcess.exe。
+// 延遲 1 秒執行，避免 UI 還在初始化時就被 kill。
+func killAppleDevicesUI() {
+	time.Sleep(1 * time.Second)
+	_ = exec.Command("taskkill", "/F", "/IM", "AppleDevices.exe").Run()
 }
 
 func driveExists(root string) bool {

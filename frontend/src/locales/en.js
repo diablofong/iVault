@@ -18,12 +18,23 @@ export default {
     'trust.allow':    'Trust',
 
     // DRIVER_MISSING
-    'driver.title':   'Apple Devices Required',
-    'driver.desc':    'The free "Apple Devices" app is required to access iPhone photos',
-    'driver.install': 'Install Free',
-    'driver.installing': 'Installing automatically...',
-    'driver.store':   'Please complete installation in Microsoft Store',
-    'driver.hint':    'Will continue automatically after installation',
+    'driver.title':            'Apple Devices Required',
+    'driver.desc':             'The free "Apple Devices" app is required to access iPhone photos',
+    'driver.only_once':        'One-time setup · Official free app from Apple',
+    'driver.wmi_detected':     'Detected:',
+    'driver.open_store':        'Go to Microsoft Store',
+    'driver.pending_title':    'Microsoft Store opened',
+    'driver.hint':             'After installation, click the button below to continue',
+    'driver.recheck':          'I\'ve installed it — Re-detect',
+    'driver.recheck_fail':     'Not detected yet. Please confirm Apple Devices is fully installed.',
+    'driver.success':          'Installation complete!',
+    'driver.success_hint':     'Please unplug and reconnect your iPhone to continue',
+    'driver.replug_done':      'Continue',
+    'driver.faq_title':        'FAQ',
+    'driver.faq_q1':           'Why is this app needed?',
+    'driver.faq_a1':           'Apple Devices is a free official driver from Apple that lets Windows recognize your iPhone.',
+    'driver.faq_q2':           'Is this safe?',
+    'driver.faq_a2':           'Completely safe. This is an official Apple app from Microsoft Store. iVault never accesses your Apple account.',
 
     // READY
     'ready.label_to': 'Back up to',
@@ -61,10 +72,13 @@ export default {
     'sponsor.btn':    'Support $5',
 
     // ERROR
-    'error.title':    'Something Went Wrong',
-    'error.retry':    'Try Again',
-    'error.back':     'Back to Home',
-    'error.report':   'Report Issue →',
+    'error.title':       'Something Went Wrong',
+    'error.retry':       'Try Again',
+    'error.back':        'Back to Home',
+    'error.report':      'Report Issue →',
+    'error.amds_title':  'Apple Devices Failed to Start',
+    'error.amds_desc':   'Please open Apple Devices once, then return to iVault and retry',
+    'error.amds_retry':  'Retry',
 
     // HEIC CONVERT
     'heic.converting': 'Converting HEIC photos...',

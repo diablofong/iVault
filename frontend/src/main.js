@@ -149,25 +149,38 @@ function registerEvents() {
     });
 
     // Driver 安裝事件
-    EventsOn('driver:install-started', (data) => {
-        const btn = document.getElementById('btn-install-driver');
-        const progress = document.getElementById('install-progress');
-        const label = document.getElementById('install-status-label');
-        if (btn) btn.style.display = 'none';
-        if (progress) progress.style.display = '';
-        if (label) {
-            label.textContent = data?.method === 'winget' ? t('driver.installing') : t('driver.store');
+    // Apple Devices 尚未安裝（watchDevices 偵測到）
+    EventsOn('driver:required', (data) => {
+        if (currentState !== 'driver-missing') setState('driver-missing');
+        // WMI 偵測到裝置名稱
+        if (data?.deviceName) {
+            const detectedEl = document.getElementById('driver-device-detected');
+            const nameEl = document.getElementById('driver-device-name-wmi');
+            if (detectedEl) detectedEl.style.display = '';
+            if (nameEl) nameEl.textContent = data.deviceName;
         }
     });
 
-    // Apple Devices 尚未安裝（watchDevices 偵測到）
-    EventsOn('driver:required', () => {
-        if (currentState !== 'driver-missing') setState('driver-missing');
+    // watchDevices 背景自動偵測到安裝完成（加分項，不依賴此路徑）
+    EventsOn('driver:installed', () => {
+        const pending = document.getElementById('install-pending');
+        const initial = document.getElementById('install-initial');
+        const success = document.getElementById('install-success');
+        if (pending) pending.style.display = 'none';
+        if (initial) initial.style.display = 'none';
+        if (success) success.style.display = '';
     });
 
-    EventsOn('driver:installed', () => {
-        if (currentDevice) setState('device-found', currentDevice);
-        else setState('idle');
+    // AMDS（AppleMobileDeviceProcess）啟動失敗
+    // MS Store Apple Devices 的背景服務無法在 8s 內啟動
+    EventsOn('amds:start_failed', () => {
+        if (currentState !== 'error') {
+            setState('error', {
+                code: 'AMDS_START_FAILED',
+                message: t('error.amds_desc'),
+                recoverable: true,
+            });
+        }
     });
 
     // HEIC 轉檔事件
@@ -190,10 +203,6 @@ function registerEvents() {
         }
     });
 
-    EventsOn('driver:install-failed', () => {
-        const label = document.getElementById('install-status-label');
-        if (label) label.textContent = t('driver.store');
-    });
 }
 
 // ============================================================
@@ -207,8 +216,58 @@ function bindHandlers() {
         if (currentState === 'ready') onEnterReady(currentDevice || {});
     });
 
-    // DRIVER_MISSING
-    document.getElementById('btn-install-driver')?.addEventListener('click', () => InstallAppleDevices());
+    // DRIVER_MISSING — 開啟 MS Store
+    document.getElementById('btn-install-driver')?.addEventListener('click', () => {
+        InstallAppleDevices();
+        document.getElementById('install-initial').style.display = 'none';
+        const pending = document.getElementById('install-pending');
+        if (pending) {
+            pending.style.display = '';
+            // data-i18n 在 display:none 內不會自動更新，手動補
+            pending.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                const val = t(key);
+                if (val) el.textContent = val;
+            });
+        }
+    });
+
+    // 手動重新偵測
+    document.getElementById('btn-recheck-driver')?.addEventListener('click', async () => {
+        const btn = document.getElementById('btn-recheck-driver');
+        const failMsg = document.getElementById('install-recheck-fail');
+        if (btn) btn.disabled = true;
+        if (failMsg) failMsg.style.display = 'none';
+        try {
+            const installed = await CheckAppleDevicesInstalled();
+            if (installed) {
+                document.getElementById('install-pending').style.display = 'none';
+                document.getElementById('install-success').style.display = '';
+            } else {
+                if (failMsg) failMsg.style.display = '';
+            }
+        } catch (e) {
+            if (failMsg) failMsg.style.display = '';
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    });
+
+    // 安裝完成後重插 iPhone
+    document.getElementById('btn-replug-done')?.addEventListener('click', () => {
+        resetDriverMissingView();
+        setState('idle');
+    });
+
+    // FAQ 展開/收合
+    document.getElementById('btn-faq-toggle')?.addEventListener('click', () => {
+        const content = document.getElementById('driver-faq-content');
+        const icon = document.getElementById('faq-toggle-icon');
+        if (!content) return;
+        const expanded = content.style.display !== 'none';
+        content.style.display = expanded ? 'none' : '';
+        if (icon) icon.textContent = expanded ? '▶' : '▼';
+    });
 
     // READY
     document.getElementById('btn-select-folder')?.addEventListener('click', onSelectFolder);
@@ -382,12 +441,26 @@ function onEnterDone(result) {
 function onEnterError(err) {
     const code = err.code || 'UNKNOWN_ERROR';
 
+    // 重設標題為預設值（處理 AMDS 等特殊 code 可能改過標題的情況）
+    const titleEl = document.getElementById('error-title');
+    if (titleEl) titleEl.textContent = t('error.title');
+
     // DEVICE_DISCONNECTED → 1.5 秒後自動回 IDLE
     if (code === 'DEVICE_DISCONNECTED') {
         setEl('error-message', err.message || 'iPhone 已斷開連線');
         document.getElementById('btn-retry')?.style && (document.getElementById('btn-retry').style.display = 'none');
         document.getElementById('btn-report-issue')?.style && (document.getElementById('btn-report-issue').style.display = 'none');
         setTimeout(() => setState('idle'), 1500);
+        return;
+    }
+
+    // AMDS_START_FAILED → 顯示專屬標題和說明
+    if (code === 'AMDS_START_FAILED') {
+        if (titleEl) titleEl.textContent = t('error.amds_title');
+        setEl('error-message', t('error.amds_desc'));
+        const retryBtn = document.getElementById('btn-retry');
+        if (retryBtn) { retryBtn.style.display = ''; retryBtn.textContent = t('error.amds_retry'); }
+        document.getElementById('btn-report-issue').style.display = 'none';
         return;
     }
 
@@ -520,6 +593,23 @@ function formatBytes(bytes) {
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
     return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+}
+
+function resetDriverMissingView() {
+    const initial    = document.getElementById('install-initial');
+    const pending    = document.getElementById('install-pending');
+    const success    = document.getElementById('install-success');
+    const detected   = document.getElementById('driver-device-detected');
+    const failMsg    = document.getElementById('install-recheck-fail');
+    const faqContent = document.getElementById('driver-faq-content');
+    const faqIcon    = document.getElementById('faq-toggle-icon');
+    if (initial)    initial.style.display = '';
+    if (pending)    pending.style.display = 'none';
+    if (success)    success.style.display = 'none';
+    if (detected)   detected.style.display = 'none';
+    if (failMsg)    failMsg.style.display = 'none';
+    if (faqContent) faqContent.style.display = 'none';
+    if (faqIcon)    faqIcon.textContent = '▶';
 }
 
 function formatRelativeDate(isoStr) {

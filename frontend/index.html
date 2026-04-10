@@ -108,17 +108,53 @@
                         <circle cx="28" cy="41" r="1.5" fill="currentColor"/>
                     </svg>
                 </div>
+                <!-- WMI 偵測到裝置時顯示 -->
+                <p class="driver-device-detected" id="driver-device-detected" style="display:none">
+                    <span data-i18n="driver.wmi_detected">偵測到你的</span>
+                    <strong id="driver-device-name-wmi"></strong>
+                </p>
                 <h2 data-i18n="driver.title">需要安裝 Apple Devices</h2>
+                <p class="state-hint" data-i18n="driver.only_once">只需安裝一次 · Apple 官方免費 App</p>
                 <p class="state-desc" data-i18n="driver.desc">需要免費的「Apple Devices」App 才能讀取 iPhone 照片</p>
                 <!-- 安裝前 -->
-                <button class="btn-primary" id="btn-install-driver" data-i18n="driver.install">一鍵安裝（免費）</button>
-                <!-- 安裝中（JS 切換顯示） -->
-                <div class="install-progress" id="install-progress" style="display:none">
-                    <div class="spinner-row">
-                        <div class="spinner"></div>
-                        <span class="spinner-label" id="install-status-label">正在安裝...</span>
+                <div id="install-initial">
+                    <button class="btn-primary" id="btn-install-driver" data-i18n="driver.open_store">前往 Microsoft Store 安裝</button>
+                </div>
+                <!-- 等待使用者完成安裝（JS 切換顯示） -->
+                <div id="install-pending" style="display:none">
+                    <p class="state-desc" data-i18n="driver.pending_title">已開啟 Microsoft Store</p>
+                    <p class="state-hint" data-i18n="driver.hint">安裝完成後，點下方按鈕繼續</p>
+                    <button class="btn-primary" id="btn-recheck-driver" data-i18n="driver.recheck">我已安裝完成，重新偵測</button>
+                    <p class="install-recheck-fail" id="install-recheck-fail" style="display:none" data-i18n="driver.recheck_fail">尚未偵測到，請確認 Apple Devices 已安裝完成</p>
+                </div>
+                <!-- 安裝完成引導 -->
+                <div id="install-success" style="display:none">
+                    <div class="install-success-icon">
+                        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                            <circle cx="18" cy="18" r="14" stroke="currentColor" stroke-width="2"/>
+                            <path d="M12 18l5 5 7-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </div>
-                    <p class="state-hint" data-i18n="driver.hint">安裝完成後會自動繼續</p>
+                    <p class="install-success-title" data-i18n="driver.success">安裝完成！</p>
+                    <p class="state-hint" data-i18n="driver.success_hint">請重新插拔 iPhone 以繼續</p>
+                    <button class="btn-primary" id="btn-replug-done" data-i18n="driver.replug_done">繼續</button>
+                </div>
+                <!-- FAQ 展開 -->
+                <div class="driver-faq">
+                    <button class="btn-faq-toggle" id="btn-faq-toggle">
+                        <span data-i18n="driver.faq_title">常見問題</span>
+                        <span class="faq-toggle-icon" id="faq-toggle-icon">▶</span>
+                    </button>
+                    <div id="driver-faq-content" style="display:none">
+                        <div class="faq-item">
+                            <p class="faq-q" data-i18n="driver.faq_q1">為什麼需要這個 App？</p>
+                            <p class="faq-a" data-i18n="driver.faq_a1">Apple Devices 是 Apple 官方提供的免費驅動程式，讓 Windows 能辨識 iPhone。</p>
+                        </div>
+                        <div class="faq-item">
+                            <p class="faq-q" data-i18n="driver.faq_q2">這樣安全嗎？</p>
+                            <p class="faq-a" data-i18n="driver.faq_a2">完全安全。這是 Microsoft Store 官方上架的 Apple 軟體，iVault 不會存取 Apple 帳號。</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -262,7 +298,7 @@
                         <line x1="35" y1="21" x2="21" y2="35" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                     </svg>
                 </div>
-                <h2 data-i18n="error.title">發生錯誤</h2>
+                <h2 id="error-title" data-i18n="error.title">發生錯誤</h2>
                 <p class="state-desc selectable" id="error-message">-</p>
                 <button class="btn-primary" id="btn-retry" data-i18n="error.retry">重試</button>
                 <button class="btn-secondary" id="btn-back-to-idle" data-i18n="error.back">返回首頁</button>

@@ -18,12 +18,23 @@ export default {
     'trust.allow':    '信任',
 
     // DRIVER_MISSING
-    'driver.title':   '需要安裝 Apple Devices',
-    'driver.desc':    '需要免費的「Apple Devices」App 才能讀取 iPhone 照片',
-    'driver.install': '一鍵安裝（免費）',
-    'driver.installing': '正在自動安裝...',
-    'driver.store':   '請在 Microsoft Store 完成安裝',
-    'driver.hint':    '安裝完成後會自動繼續',
+    'driver.title':            '需要安裝 Apple Devices',
+    'driver.desc':             '需要免費的「Apple Devices」App 才能讀取 iPhone 照片',
+    'driver.only_once':        '只需安裝一次 · Apple 官方免費 App',
+    'driver.wmi_detected':     '偵測到你的',
+    'driver.open_store':        '前往 Microsoft Store 安裝',
+    'driver.pending_title':    '已開啟 Microsoft Store',
+    'driver.hint':             '安裝完成後，點下方按鈕繼續',
+    'driver.recheck':          '我已安裝完成，重新偵測',
+    'driver.recheck_fail':     '尚未偵測到，請確認 Apple Devices 已安裝完成',
+    'driver.success':          '安裝完成！',
+    'driver.success_hint':     '請重新插拔 iPhone 以繼續',
+    'driver.replug_done':      '繼續',
+    'driver.faq_title':        '常見問題',
+    'driver.faq_q1':           '為什麼需要這個 App？',
+    'driver.faq_a1':           'Apple Devices 是 Apple 官方提供的免費驅動程式，讓 Windows 能辨識 iPhone。',
+    'driver.faq_q2':           '這樣安全嗎？',
+    'driver.faq_a2':           '完全安全。這是 Microsoft Store 官方上架的 Apple 軟體，iVault 不會存取你的 Apple 帳號。',
 
     // READY
     'ready.label_to': '備份到',
@@ -61,10 +72,13 @@ export default {
     'sponsor.btn':    '$5 支持開發',
 
     // ERROR
-    'error.title':    '發生錯誤',
-    'error.retry':    '重試',
-    'error.back':     '返回首頁',
-    'error.report':   '回報問題 →',
+    'error.title':       '發生錯誤',
+    'error.retry':       '重試',
+    'error.back':        '返回首頁',
+    'error.report':      '回報問題 →',
+    'error.amds_title':  'Apple Devices 未能啟動',
+    'error.amds_desc':   '請手動打開 Apple Devices 一次後，回到 iVault 重試',
+    'error.amds_retry':  '重試',
 
     // HEIC CONVERT
     'heic.converting': '正在轉換 HEIC...',

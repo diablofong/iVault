@@ -104,49 +104,10 @@ func (a *App) CheckAppleDevicesInstalled() bool {
 	return platform.RecheckAppleDevices()
 }
 
-// InstallAppleDevices Windows 專用：嘗試安裝 Apple Devices
-// 有 winget → 背景 install/upgrade；無 winget → 開 Microsoft Store
+// InstallAppleDevices Windows 專用：開啟 Microsoft Store Apple Devices 頁面
+// 安裝由使用者在 Store 完成後手動點「重新偵測」，不依賴自動偵測推進 UX。
 func (a *App) InstallAppleDevices() {
-	go a.pollDriverInstall()
-
-	if platform.HasWinget() {
-		wailsRuntime.EventsEmit(a.ctx, "driver:install-started", map[string]any{
-			"method": "winget",
-		})
-		go func() {
-			if err := platform.InstallAppleDevicesViaWinget(); err != nil {
-				wailsRuntime.EventsEmit(a.ctx, "driver:install-failed", map[string]any{
-					"error": err.Error(),
-				})
-				// winget 兩步都失敗，fallback 到 Microsoft Store
-				_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9K")
-			}
-			// 成功時 pollDriverInstall 會偵測路徑並 emit driver:installed
-		}()
-	} else {
-		_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9K")
-		wailsRuntime.EventsEmit(a.ctx, "driver:install-started", map[string]any{
-			"method": "store",
-		})
-	}
-}
-
-// pollDriverInstall 每 3 秒檢查 Apple Devices 是否已安裝，最多等 3 分鐘
-func (a *App) pollDriverInstall() {
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-	for i := 0; i < 60; i++ {
-		<-ticker.C
-		if platform.RecheckAppleDevices() {
-			a.mu.Lock()
-			if a.platformInfo != nil {
-				a.platformInfo.AppleDevicesInstalled = true
-			}
-			a.mu.Unlock()
-			wailsRuntime.EventsEmit(a.ctx, "driver:installed", nil)
-			return
-		}
-	}
+	_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9K")
 }
 
 // ============================================================
@@ -341,15 +302,21 @@ func (a *App) CopyFirstPhoto(udid string) (*backup.CopyResult, error) {
 // 此函式主動偵測並透過事件通知前端，同時持續輪詢直到驅動裝好。
 func (a *App) watchDevices() {
 	driverWasMissing := false
+	amdsFailNotified := false // 避免重複發同一個錯誤事件
 
 	for {
 		// Windows 專用：Apple Devices 前置條件檢查
 		if a.platformInfo != nil && a.platformInfo.OS == "windows" {
+			// [1] Driver 檢查（原有）
 			if !platform.RecheckAppleDevices() {
 				if !driverWasMissing {
 					// 等前端 ready 後再發事件（避免前端尚未掛載監聽器）
 					time.Sleep(600 * time.Millisecond)
-					wailsRuntime.EventsEmit(a.ctx, "driver:required", nil)
+					// 嘗試 WMI 偵測 iPhone（驅動未裝仍可取得裝置名稱）
+					deviceName := platform.WMIDetectIPhone()
+					wailsRuntime.EventsEmit(a.ctx, "driver:required", map[string]any{
+						"deviceName": deviceName,
+					})
 					driverWasMissing = true
 				}
 				time.Sleep(3 * time.Second)
@@ -365,8 +332,23 @@ func (a *App) watchDevices() {
 				wailsRuntime.EventsEmit(a.ctx, "driver:installed", nil)
 				driverWasMissing = false
 			}
+
+			// [2] AMDS 確認：確保 AppleMobileDeviceProcess.exe 已在 listening port 27015
+			// MS Store 版 Apple Devices 不像 iTunes 開機自動常駐，需手動喚起
+			if err := platform.EnsureAMDSRunning(); err != nil {
+				if !amdsFailNotified {
+					wailsRuntime.EventsEmit(a.ctx, "amds:start_failed", map[string]any{
+						"error": err.Error(),
+					})
+					amdsFailNotified = true
+				}
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			amdsFailNotified = false // 成功後 reset，未來若再失敗可以重新通知
 		}
 
+		// [3] 裝置監聽（原有）
 		a.runDeviceListener()
 		// listener 斷掉（usbmuxd 重啟、裝置拔除等）→ 等 3 秒後重試
 		time.Sleep(3 * time.Second)
