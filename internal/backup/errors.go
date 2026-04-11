@@ -15,6 +15,7 @@ var (
 	ErrDiskFull           = &BackupError{Code: "DISK_FULL", Message: "磁碟空間不足，請釋放空間後繼續", Recoverable: true}
 	ErrPermissionDenied   = &BackupError{Code: "PERMISSION_DENIED", Message: "沒有權限寫入此資料夾，請選擇其他位置", Recoverable: true}
 	ErrAFCConnectFailed   = &BackupError{Code: "AFC_CONNECT_FAILED", Message: "無法存取 iPhone 照片，請確認 iPhone 已解鎖", Recoverable: true}
+	ErrAFCTimeout         = &BackupError{Code: "AFC_TIMEOUT", Message: "iPhone 連線不穩，請換一條 USB 線或重新插拔", Recoverable: true}
 	ErrTrustTimeout       = &BackupError{Code: "TRUST_TIMEOUT", Message: "等待超時，請確認 iPhone 已解鎖並點信任", Recoverable: true}
 	ErrUnsupportedIOS     = &BackupError{Code: "IOS_UNSUPPORTED", Message: "你的 iOS 版本暫不支援，需 iOS 14 以上", Recoverable: false}
 )

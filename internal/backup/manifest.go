@@ -12,12 +12,13 @@ import (
 
 // Manifest 斷點續傳記錄
 type Manifest struct {
-	Version    int                      `json:"version"`
-	DeviceUDID string                   `json:"deviceUDID"`
-	DeviceName string                   `json:"deviceName"`
-	CreatedAt  string                   `json:"createdAt"`
-	UpdatedAt  string                   `json:"updatedAt"`
-	Files      map[string]ManifestEntry `json:"files"`
+	Version     int                      `json:"version"`
+	DeviceUDID  string                   `json:"deviceUDID"`
+	DeviceName  string                   `json:"deviceName"`
+	CreatedAt   string                   `json:"createdAt"`
+	UpdatedAt   string                   `json:"updatedAt"`
+	Interrupted bool                     `json:"interrupted"` // 上次備份是否被中斷
+	Files       map[string]ManifestEntry `json:"files"`
 
 	filePath string // 不序列化
 }
@@ -80,7 +81,7 @@ func (m *Manifest) MarkDone(file device.PhotoFile, localPath string) {
 	m.UpdatedAt = time.Now().Format(time.RFC3339)
 }
 
-// Save 寫入磁碟
+// Save 寫入磁碟（中斷時 interrupted=true，完成時 interrupted=false）
 func (m *Manifest) Save() error {
 	if err := os.MkdirAll(filepath.Dir(m.filePath), 0755); err != nil {
 		return err
@@ -90,11 +91,40 @@ func (m *Manifest) Save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(m.filePath, data, 0644)
+	return os.WriteFile(m.filePath, data, 0600)
+}
+
+// SaveInterrupted 標記中斷狀態並寫入磁碟
+func (m *Manifest) SaveInterrupted() error {
+	m.Interrupted = true
+	return m.Save()
+}
+
+// SaveCompleted 標記完成狀態並寫入磁碟
+func (m *Manifest) SaveCompleted() error {
+	m.Interrupted = false
+	return m.Save()
 }
 
 func manifestPath(backupPath, udid string) string {
-	// 清理 UDID 中的特殊字元避免路徑問題
-	safeUDID := strings.ReplaceAll(udid, ":", "-")
-	return filepath.Join(backupPath, ".ivault", "manifest-"+safeUDID+".json")
+	return filepath.Join(backupPath, ".ivault", "manifest-"+sanitizeUDID(udid)+".json")
+}
+
+// sanitizeUDID 把 UDID 轉成安全的檔名組件：只保留 [A-Za-z0-9]，其餘一律轉 `-`。
+// 阻止 `..`、路徑分隔符、控制字元等被當成檔名組件。
+func sanitizeUDID(udid string) string {
+	var b strings.Builder
+	for _, r := range udid {
+		switch {
+		case r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('-')
+		}
+	}
+	s := b.String()
+	if s == "" {
+		return "unknown"
+	}
+	return s
 }

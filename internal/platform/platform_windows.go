@@ -8,11 +8,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 )
+
+// aumidRegex 限制 Windows AppUserModelId 只能含安全字元，防止 Get-AppxPackage 輸出
+// 被竄改後導致 shell:AppsFolder\{AUMID} 拼接出意外的路徑或指令。
+// 格式：{PackageName}_{PublisherHash}!{EntryPoint}
+var aumidRegex = regexp.MustCompile(`^[A-Za-z0-9._-]+_[A-Za-z0-9]+![A-Za-z0-9]+$`)
 
 var (
 	kernel32                = syscall.NewLazyDLL("kernel32.dll")
@@ -233,8 +239,8 @@ func EnsureAMDSRunning() error {
 		return fmt.Errorf("launch Apple Devices: %w", err)
 	}
 
-	// 輪詢最多 8 秒
-	deadline := time.Now().Add(8 * time.Second)
+	// 輪詢最多 20 秒（MS Store Apple Devices 冷啟動需要較長時間）
+	deadline := time.Now().Add(20 * time.Second)
 	for time.Now().Before(deadline) {
 		time.Sleep(500 * time.Millisecond)
 		if IsAMDSReady() {
@@ -244,7 +250,7 @@ func EnsureAMDSRunning() error {
 		}
 	}
 
-	return fmt.Errorf("AMDS did not start within 8s (port 27015 never opened)")
+	return fmt.Errorf("AMDS_TIMEOUT")
 }
 
 // findAppleDevicesAUMID 動態取得 Apple Devices 的 AppUserModelId。
@@ -260,7 +266,11 @@ func findAppleDevicesAUMID() (string, error) {
 	if familyName == "" {
 		return "", fmt.Errorf("Apple Devices package not installed")
 	}
-	return familyName + "!App", nil
+	aumid := familyName + "!App"
+	if !aumidRegex.MatchString(aumid) {
+		return "", fmt.Errorf("unexpected AUMID format: %q", aumid)
+	}
+	return aumid, nil
 }
 
 // killAppleDevicesUI 關閉 Apple Devices UI 窗，保留背景 AppleMobileDeviceProcess.exe。

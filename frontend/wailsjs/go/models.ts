@@ -46,6 +46,8 @@ export namespace config {
 	    deviceName: string;
 	    deviceUdid: string;
 	    newFiles: number;
+	    photosCount: number;
+	    videosCount: number;
 	    skipped: number;
 	    failed: number;
 	    totalBytes: number;
@@ -61,6 +63,8 @@ export namespace config {
 	        this.deviceName = source["deviceName"];
 	        this.deviceUdid = source["deviceUdid"];
 	        this.newFiles = source["newFiles"];
+	        this.photosCount = source["photosCount"];
+	        this.videosCount = source["videosCount"];
 	        this.skipped = source["skipped"];
 	        this.failed = source["failed"];
 	        this.totalBytes = source["totalBytes"];
@@ -72,6 +76,10 @@ export namespace config {
 	    convertHeic: boolean;
 	    organizeByDate: boolean;
 	    history: BackupRecord[];
+	    lastInterrupted: boolean;
+	    interruptedDone: number;
+	    interruptedTotal: number;
+	    firstBackupDone: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
@@ -83,6 +91,10 @@ export namespace config {
 	        this.convertHeic = source["convertHeic"];
 	        this.organizeByDate = source["organizeByDate"];
 	        this.history = this.convertValues(source["history"], BackupRecord);
+	        this.lastInterrupted = source["lastInterrupted"];
+	        this.interruptedDone = source["interruptedDone"];
+	        this.interruptedTotal = source["interruptedTotal"];
+	        this.firstBackupDone = source["firstBackupDone"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

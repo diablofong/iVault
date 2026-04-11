@@ -26,12 +26,12 @@ import { t, renderAll, setLang, getLang } from './i18n.js';
 const STATES = ['idle', 'device-found', 'trust-guide', 'driver-missing', 'ready', 'backing-up', 'done', 'error'];
 
 let currentState = null;
-let currentDevice = null;   // device.DeviceInfo
+let currentDevice = null;
 let selectedPath = '';
 let backupResult = null;
 let platformInfo = null;
 let appConfig = null;
-let lastError = null;
+let trustHintTimer = null;
 
 function setState(newState, data = {}) {
     if (!STATES.includes(newState)) {
@@ -42,25 +42,33 @@ function setState(newState, data = {}) {
     if (currentState) {
         document.getElementById(`view-${currentState}`)?.classList.remove('active');
     }
-    currentState = newState;
-    document.getElementById(`view-${newState}`)?.classList.add('active');
 
-    // AMDS 啟動提示只在 IDLE 時顯示，切換到其他狀態時隱藏
+    // 離開 trust-guide 時清除提示計時器
+    if (currentState === 'trust-guide' && trustHintTimer) {
+        clearTimeout(trustHintTimer);
+        trustHintTimer = null;
+    }
+
+    // AMDS 提示只在 IDLE 時有效
     if (newState !== 'idle') {
         const amdsEl = document.getElementById('amds-status');
         if (amdsEl) amdsEl.style.display = 'none';
     }
+
+    currentState = newState;
+    document.getElementById(`view-${newState}`)?.classList.add('active');
 
     onEnterState(newState, data);
 }
 
 function onEnterState(state, data) {
     switch (state) {
-        case 'device-found':   onEnterDeviceFound(data);  break;
-        case 'trust-guide':    onEnterTrustGuide(data);   break;
-        case 'ready':          onEnterReady(data);         break;
-        case 'done':           onEnterDone(data);          break;
-        case 'error':          onEnterError(data);         break;
+        case 'idle':           onEnterIdle();              break;
+        case 'device-found':   onEnterDeviceFound(data);   break;
+        case 'trust-guide':    onEnterTrustGuide(data);    break;
+        case 'ready':          onEnterReady(data);          break;
+        case 'done':           onEnterDone(data);           break;
+        case 'error':          onEnterError(data);          break;
     }
 }
 
@@ -68,11 +76,9 @@ function onEnterState(state, data) {
 // 初始化
 // ============================================================
 async function init() {
-    // 視窗控制（Windows）
     document.getElementById('btn-minimize')?.addEventListener('click', () => WindowMinimise());
     document.getElementById('btn-close')?.addEventListener('click', () => Quit());
 
-    // 取得平台資訊與設定
     try {
         [platformInfo, appConfig] = await Promise.all([GetPlatformInfo(), LoadConfig()]);
         document.body.classList.add(`os-${platformInfo.os}`);
@@ -81,27 +87,20 @@ async function init() {
         console.error('init:', e);
     }
 
-    // i18n 初始渲染
     renderAll();
-
-    // 註冊 Wails 事件
     registerEvents();
-
-    // 綁定按鈕
     bindHandlers();
 
-    // Windows：主動確認 Apple Devices 安裝狀態，不等裝置連線觸發
     if (platformInfo?.os === 'windows') {
         try {
             const installed = await CheckAppleDevicesInstalled();
             if (!installed) {
                 setState('driver-missing');
-                return; // 等裝好後 watchDevices 會 emit driver:installed
+                return;
             }
-        } catch (e) { /* 無法判斷時繼續走正常流程 */ }
+        } catch (e) {}
     }
 
-    // 檢查是否已有裝置連線（app 重啟場景）
     try {
         const dev = await GetConnectedDevice();
         if (dev && dev.udid) {
@@ -126,7 +125,6 @@ function registerEvents() {
 
     EventsOn('device:disconnected', () => {
         currentDevice = null;
-        // 備份中若斷線，backup:error 會處理；其他狀態直接回 idle
         if (currentState !== 'backing-up') {
             setState('idle');
         }
@@ -138,36 +136,51 @@ function registerEvents() {
         }
     });
 
+    EventsOn('trust:timeout', () => {
+        if (currentState === 'trust-guide') {
+            setState('error', {
+                code: 'TRUST_TIMEOUT',
+                message: t('error.TRUST_TIMEOUT'),
+                recoverable: true,
+            });
+        }
+    });
+
     EventsOn('backup:progress', (progress) => {
         updateProgressUI(progress);
     });
 
     EventsOn('backup:complete', (result) => {
         backupResult = result;
+        // 更新 appConfig 快取（IDLE variant 需要）
+        if (appConfig) {
+            appConfig.lastInterrupted = false;
+            appConfig.firstBackupDone = true;
+        }
         setState('done', result);
     });
 
+    EventsOn('backup:interrupted', () => {
+        // 中斷時回 IDLE，顯示中斷變體
+        if (appConfig) appConfig.lastInterrupted = true;
+        setState('idle');
+    });
+
     EventsOn('backup:error', (err) => {
-        lastError = err;
+        if (appConfig) appConfig.lastInterrupted = true;
         if (currentState === 'backing-up') {
             setState('error', err);
         }
     });
 
-    // Driver 安裝事件
-    // Apple Devices 尚未安裝（watchDevices 偵測到）
     EventsOn('driver:required', (data) => {
         if (currentState !== 'driver-missing') setState('driver-missing');
-        // WMI 偵測到裝置名稱
+        // WMI 偵測到裝置時不顯示 placeholder（P0-6：只在有偵測到時才顯示）
         if (data?.deviceName) {
-            const detectedEl = document.getElementById('driver-device-detected');
-            const nameEl = document.getElementById('driver-device-name-wmi');
-            if (detectedEl) detectedEl.style.display = '';
-            if (nameEl) nameEl.textContent = data.deviceName;
+            // 可在 driver view 附近加設備名稱，目前簡化版不顯示
         }
     });
 
-    // watchDevices 背景自動偵測到安裝完成（加分項，不依賴此路徑）
     EventsOn('driver:installed', () => {
         const pending = document.getElementById('install-pending');
         const initial = document.getElementById('install-initial');
@@ -177,14 +190,11 @@ function registerEvents() {
         if (success) success.style.display = '';
     });
 
-    // AMDS 正在啟動：Apple Devices UI 即將彈出，在 IDLE 畫面顯示提示
     EventsOn('amds:starting', () => {
         const el = document.getElementById('amds-status');
         if (el) el.style.display = '';
     });
 
-    // AMDS（AppleMobileDeviceProcess）啟動失敗
-    // MS Store Apple Devices 的背景服務無法在 8s 內啟動
     EventsOn('amds:start_failed', () => {
         if (currentState !== 'error') {
             setState('error', {
@@ -195,7 +205,16 @@ function registerEvents() {
         }
     });
 
-    // HEIC 轉檔事件
+    EventsOn('amds:timeout', () => {
+        if (currentState !== 'error') {
+            setState('error', {
+                code: 'AMDS_TIMEOUT',
+                message: t('error.AMDS_TIMEOUT'),
+                recoverable: true,
+            });
+        }
+    });
+
     EventsOn('heic:progress', (data) => {
         const section = document.getElementById('heic-convert-section');
         const bar = document.getElementById('heic-progress-bar');
@@ -214,28 +233,25 @@ function registerEvents() {
             if (section) section.style.display = 'none';
         }
     });
-
 }
 
 // ============================================================
 // 按鈕綁定
 // ============================================================
 function bindHandlers() {
-    // 語言切換
     document.getElementById('btn-lang-toggle')?.addEventListener('click', () => {
         setLang(getLang() === 'zh-TW' ? 'en' : 'zh-TW');
-        // 重新渲染動態欄位
+        if (currentState === 'idle') onEnterIdle();
         if (currentState === 'ready') onEnterReady(currentDevice || {});
     });
 
-    // DRIVER_MISSING — 開啟 MS Store
+    // DRIVER_MISSING
     document.getElementById('btn-install-driver')?.addEventListener('click', () => {
         InstallAppleDevices();
         document.getElementById('install-initial').style.display = 'none';
         const pending = document.getElementById('install-pending');
         if (pending) {
             pending.style.display = '';
-            // data-i18n 在 display:none 內不會自動更新，手動補
             pending.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const val = t(key);
@@ -244,7 +260,6 @@ function bindHandlers() {
         }
     });
 
-    // 手動重新偵測
     document.getElementById('btn-recheck-driver')?.addEventListener('click', async () => {
         const btn = document.getElementById('btn-recheck-driver');
         const failMsg = document.getElementById('install-recheck-fail');
@@ -265,13 +280,11 @@ function bindHandlers() {
         }
     });
 
-    // 安裝完成後重插 iPhone
     document.getElementById('btn-replug-done')?.addEventListener('click', () => {
         resetDriverMissingView();
         setState('idle');
     });
 
-    // FAQ 展開/收合
     document.getElementById('btn-faq-toggle')?.addEventListener('click', () => {
         const content = document.getElementById('driver-faq-content');
         const icon = document.getElementById('faq-toggle-icon');
@@ -295,9 +308,15 @@ function bindHandlers() {
     document.getElementById('btn-sponsor')?.addEventListener('click', () => {
         OpenURL('https://buymeacoffee.com/ivault');
     });
-    document.getElementById('btn-backup-again')?.addEventListener('click', () => setState('idle'));
+    document.getElementById('btn-backup-again')?.addEventListener('click', () => {
+        // iPhone 仍插著 → 直接回 READY，不需要重新連接
+        if (currentDevice?.udid) {
+            setState('ready', currentDevice);
+        } else {
+            setState('idle');
+        }
+    });
 
-    // 失敗清單展開/收合
     document.getElementById('btn-toggle-failed')?.addEventListener('click', () => {
         const list = document.getElementById('failed-list');
         const icon = document.getElementById('failed-toggle-icon');
@@ -307,7 +326,6 @@ function bindHandlers() {
         if (icon) icon.textContent = expanded ? '▶' : '▼';
     });
 
-    // HEIC 一鍵安裝（Windows HEIF 擴充）
     document.getElementById('btn-install-heic')?.addEventListener('click', () => {
         OpenURL('ms-windows-store://pdp?productId=9PMMSR1CGPWG');
     });
@@ -327,12 +345,59 @@ function bindHandlers() {
 // 狀態進入處理
 // ============================================================
 
+function onEnterIdle() {
+    const cfg = appConfig;
+    const history = cfg?.history ?? [];
+    const isInterrupted = cfg?.lastInterrupted === true;
+    const isReturning = history.length > 0 && !isInterrupted;
+
+    // 隱藏所有 variant
+    document.getElementById('idle-variant-first').style.display = 'none';
+    document.getElementById('idle-variant-returning').style.display = 'none';
+    document.getElementById('idle-variant-interrupted').style.display = 'none';
+
+    if (isInterrupted) {
+        document.getElementById('idle-variant-interrupted').style.display = '';
+        const done = cfg?.interruptedDone ?? 0;
+        const total = cfg?.interruptedTotal ?? 0;
+        const infoEl = document.getElementById('idle-interrupted-info');
+        if (infoEl) {
+            if (done > 0 && total > 0) {
+                infoEl.textContent = `已備份 ${fmt(done)} / ${fmt(total)} · ${t('idle.interrupted.progress')}`;
+            } else {
+                infoEl.textContent = t('idle.interrupted.progress');
+            }
+        }
+    } else if (isReturning) {
+        document.getElementById('idle-variant-returning').style.display = '';
+        const rec = history[0];
+        const dateStr = formatRelativeDate(rec.date);
+        const photos = rec.photosCount ?? 0;
+        const videos = rec.videosCount ?? 0;
+        const infoEl = document.getElementById('idle-last-backup-info');
+        if (infoEl) {
+            const lang = getLang();
+            if (photos === 0 && videos === 0) {
+                // 全部已是最新，不顯示「0 張」
+                infoEl.textContent = lang === 'zh-TW'
+                    ? `上次備份：${dateStr} · 全部已是最新`
+                    : `Last backed up: ${dateStr} · Everything is up to date`;
+            } else if (lang === 'zh-TW') {
+                infoEl.textContent = `上次備份：${dateStr} · ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`;
+            } else {
+                infoEl.textContent = `Last backed up: ${dateStr} · ${fmt(photos)} photos · ${fmt(videos)} videos`;
+            }
+        }
+    } else {
+        document.getElementById('idle-variant-first').style.display = '';
+    }
+}
+
 async function onEnterDeviceFound(info) {
     setEl('device-name', info.name || 'iPhone');
     setEl('device-ios', `iOS ${info.iosVersion || '-'}`);
     setEl('device-photo-count', t('device.reading'));
 
-    // Windows：先確認 Apple Devices 是否安裝
     if (platformInfo?.os === 'windows') {
         try {
             const installed = await CheckAppleDevicesInstalled();
@@ -340,62 +405,65 @@ async function onEnterDeviceFound(info) {
                 setState('driver-missing');
                 return;
             }
-        } catch (e) { /* 繼續 */ }
+        } catch (e) {}
     }
 
-    // 檢查信任狀態
     try {
         const trusted = await CheckTrustStatus(info.udid);
         if (!trusted) {
             setState('trust-guide', info);
             return;
         }
-    } catch (e) { /* 連線失敗也繼續嘗試 */ }
+    } catch (e) {}
 
-    // 背景取得照片數（READY 頁顯示）
     fetchPhotoCount(info.udid);
-
     setState('ready', info);
 }
 
-function onEnterTrustGuide(info) {
-    // 後端 watchDevices → startTrustPolling 已在背景輪詢
-    // 前端只需等待 device:trust-changed event
+function onEnterTrustGuide() {
+    // 重設慢速提示
+    const hint = document.getElementById('trust-slow-hint');
+    if (hint) hint.style.display = 'none';
+
+    // 10 秒後淡入次要提示
+    trustHintTimer = setTimeout(() => {
+        const h = document.getElementById('trust-slow-hint');
+        if (h && currentState === 'trust-guide') h.style.display = '';
+    }, 10000);
 }
 
 async function onEnterReady(info) {
     setEl('ready-device-name', info.name || 'iPhone');
 
-    // 預設路徑
     if (!selectedPath) {
-        try {
-            selectedPath = await GetDefaultBackupPath();
-        } catch (e) {}
+        try { selectedPath = await GetDefaultBackupPath(); } catch (e) {}
     }
     setEl('backup-path', selectedPath || '-');
+    if (selectedPath) updateDiskInfo(selectedPath);
+    if (info.udid && selectedPath) estimateSize(info.udid, selectedPath);
 
-    // 磁碟資訊
-    if (selectedPath) {
-        updateDiskInfo(selectedPath);
-    }
-
-    // 估算備份大小
-    if (info.udid && selectedPath) {
-        estimateSize(info.udid, selectedPath);
-    }
-
-    // 還原 HEIC 設定
     const checkbox = document.getElementById('convert-heic');
     if (checkbox && appConfig) checkbox.checked = !!appConfig.convertHeic;
 
-    // 上次備份資訊
     const lastBackupRow = document.getElementById('last-backup-row');
     const lastBackupInfo = document.getElementById('last-backup-info');
     if (appConfig?.history?.length > 0) {
         const rec = appConfig.history[0];
         const dateStr = formatRelativeDate(rec.date);
-        const countStr = `${fmt(rec.newFiles)} ${t('ready.files_count')}`;
-        if (lastBackupInfo) lastBackupInfo.textContent = `${dateStr}，共 ${countStr}`;
+        const photos = rec.photosCount ?? 0;
+        const videos = rec.videosCount ?? 0;
+        const lang = getLang();
+        let infoText;
+        if (photos === 0 && videos === 0) {
+            infoText = lang === 'zh-TW'
+                ? `${dateStr} · 全部已是最新`
+                : `${dateStr} · Everything up to date`;
+        } else if (lang === 'zh-TW') {
+            infoText = `${dateStr} · ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`;
+        } else {
+            infoText = `${dateStr} · ${fmt(photos)} photos · ${fmt(videos)} videos`;
+        }
+        if (lastBackupInfo) lastBackupInfo.textContent = infoText;
         if (lastBackupRow) lastBackupRow.style.display = '';
     } else {
         if (lastBackupInfo) lastBackupInfo.textContent = t('ready.no_backup');
@@ -404,28 +472,49 @@ async function onEnterReady(info) {
 }
 
 function onEnterDone(result) {
-    setEl('done-new-count', fmt(result.newFiles ?? 0));
-    setEl('done-skip-count', fmt(result.skippedFiles ?? 0));
-    setEl('done-fail-count', fmt(result.failedFiles ?? 0));
+    const isFirst = !(appConfig?.firstBackupDone);
+    const photos = result.photosCount ?? 0;
+    const videos = result.videosCount ?? 0;
 
-    const durEl = document.getElementById('done-duration');
-    if (durEl) durEl.textContent = result.duration ? `${t('done.duration')} ${result.duration}` : '';
-
-    // 失敗數 > 0 時標紅
-    const failEl = document.getElementById('done-fail-count');
-    if (failEl) failEl.classList.toggle('danger', (result.failedFiles ?? 0) > 0);
-
-    // 備份大小
-    const totalSizeEl = document.getElementById('done-total-size');
-    const totalSizeValueEl = document.getElementById('done-total-size-value');
-    if (result.totalBytes > 0) {
-        if (totalSizeValueEl) totalSizeValueEl.textContent = formatBytes(result.totalBytes);
-        if (totalSizeEl) totalSizeEl.style.display = '';
+    // 主標兩版
+    const lang = getLang();
+    let mainTitle;
+    if (isFirst) {
+        if (lang === 'zh-TW') {
+            mainTitle = `你的 ${fmt(photos)} 張照片和 ${fmt(videos)} 段影片安全了`;
+        } else {
+            mainTitle = `Your ${fmt(photos)} photos and ${fmt(videos)} videos are safe`;
+        }
     } else {
-        if (totalSizeEl) totalSizeEl.style.display = 'none';
+        const newPhotos = result.photosCount ?? 0;
+        const newVideos = result.videosCount ?? 0;
+        if (lang === 'zh-TW') {
+            mainTitle = `新增 ${fmt(newPhotos)} 張照片和 ${fmt(newVideos)} 段影片`;
+        } else {
+            mainTitle = `${fmt(newPhotos)} new photos and ${fmt(newVideos)} new videos added`;
+        }
     }
+    setEl('done-main-title', mainTitle);
 
-    // 失敗清單（可展開）
+    // 副標
+    const now = new Date();
+    const dateStr = lang === 'zh-TW'
+        ? `${now.getMonth() + 1} 月 ${now.getDate()} 日`
+        : now.toLocaleDateString('en', { month: 'long', day: 'numeric' });
+    setEl('done-subtitle', `備份於 ${dateStr}` );
+
+    // 首次彩蛋
+    const eggEl = document.getElementById('done-first-egg');
+    if (eggEl) eggEl.style.display = isFirst ? '' : 'none';
+
+    // Bento 四格
+    setEl('done-photos-count', fmt(photos));
+    setEl('done-videos-count', fmt(videos));
+    const totalSizeEl = document.getElementById('done-total-size-value');
+    if (totalSizeEl) totalSizeEl.textContent = result.totalBytes > 0 ? formatBytes(result.totalBytes) : '-';
+    setEl('done-duration-value', result.duration || '-');
+
+    // 失敗清單
     const failedSection = document.getElementById('failed-section');
     const failedList = document.getElementById('failed-list');
     const failedCount = result.failedFiles ?? 0;
@@ -433,7 +522,7 @@ function onEnterDone(result) {
     setEl('failed-detail-count', fmt(failedCount));
     if (failedList && failedCount > 0 && Array.isArray(result.failedList)) {
         failedList.innerHTML = '';
-        failedList.style.display = 'none'; // 預設收合
+        failedList.style.display = 'none';
         document.getElementById('failed-toggle-icon').textContent = '▶';
         result.failedList.forEach(f => {
             const row = document.createElement('div');
@@ -448,46 +537,118 @@ function onEnterDone(result) {
     if (heicHint) {
         heicHint.style.display = (platformInfo?.os === 'windows' && result.hasHeic) ? '' : 'none';
     }
+
+    triggerSuccessParticles();
+}
+
+function triggerSuccessParticles() {
+    const container = document.getElementById('particle-container');
+    if (!container) return;
+    const icon = document.querySelector('#view-done .success-icon');
+    if (icon && container.parentElement) {
+        const iconRect = icon.getBoundingClientRect();
+        const parentRect = container.parentElement.getBoundingClientRect();
+        container.style.left = (iconRect.left - parentRect.left + iconRect.width / 2) + 'px';
+        container.style.top = (iconRect.top - parentRect.top + iconRect.height / 2) + 'px';
+    }
+    container.innerHTML = '';
+    const count = 14;
+    for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.3;
+        const distance = 60 + Math.random() * 30;
+        p.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+        p.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+        p.style.animationDelay = (i * 18) + 'ms';
+        container.appendChild(p);
+    }
+    setTimeout(() => { container.innerHTML = ''; }, 1500);
 }
 
 function onEnterError(err) {
     const code = err.code || 'UNKNOWN_ERROR';
-
-    // 重設標題為預設值（處理 AMDS 等特殊 code 可能改過標題的情況）
     const titleEl = document.getElementById('error-title');
-    if (titleEl) titleEl.textContent = t('error.title');
+    const retryBtn = document.getElementById('btn-retry');
+    const issueBtn = document.getElementById('btn-report-issue');
+
+    // 重設按鈕狀態
+    if (retryBtn) { retryBtn.style.display = ''; retryBtn.textContent = t('error.retry'); }
+    if (issueBtn) issueBtn.style.display = 'none';
 
     // DEVICE_DISCONNECTED → 1.5 秒後自動回 IDLE
     if (code === 'DEVICE_DISCONNECTED') {
-        setEl('error-message', err.message || 'iPhone 已斷開連線');
-        document.getElementById('btn-retry')?.style && (document.getElementById('btn-retry').style.display = 'none');
-        document.getElementById('btn-report-issue')?.style && (document.getElementById('btn-report-issue').style.display = 'none');
+        if (titleEl) titleEl.textContent = t('error.title');
+        setEl('error-message', t('error.DEVICE_DISCONNECTED'));
+        if (retryBtn) retryBtn.style.display = 'none';
         setTimeout(() => setState('idle'), 1500);
         return;
     }
 
-    // AMDS_START_FAILED → 顯示專屬標題和說明
+    // AMDS_START_FAILED → 專屬標題
     if (code === 'AMDS_START_FAILED') {
         if (titleEl) titleEl.textContent = t('error.amds_title');
         setEl('error-message', t('error.amds_desc'));
-        const retryBtn = document.getElementById('btn-retry');
-        if (retryBtn) { retryBtn.style.display = ''; retryBtn.textContent = t('error.amds_retry'); }
-        document.getElementById('btn-report-issue').style.display = 'none';
+        if (retryBtn) retryBtn.textContent = t('error.amds_retry');
         return;
     }
 
-    setEl('error-message', err.message || '發生未預期的錯誤，請重試。');
+    // 其他錯誤碼：查 i18n 字典
+    if (titleEl) titleEl.textContent = t('error.title');
+    const localizedMsg = t(`error.${code}`);
+    setEl('error-message', localizedMsg !== `error.${code}` ? localizedMsg : (err.message || '發生未預期的錯誤，請重試。'));
 
-    const retryBtn = document.getElementById('btn-retry');
     if (retryBtn) retryBtn.style.display = err.recoverable !== false ? '' : 'none';
 
-    // UNKNOWN_ERROR → 顯示回報問題按鈕
-    const issueBtn = document.getElementById('btn-report-issue');
+    // 只有真正未知的錯誤才顯示「回報問題」
     if (issueBtn) issueBtn.style.display = code === 'UNKNOWN_ERROR' ? '' : 'none';
 }
 
 // ============================================================
-// 事件處理 — READY 動作
+// 進度更新（P1-2 故事感）
+// ============================================================
+
+function updateProgressUI(p) {
+    const pct = (p.percent ?? 0).toFixed(1);
+    const bar = document.getElementById('backup-progress-bar');
+    if (bar) bar.style.width = pct + '%';
+
+    setEl('backup-percent', pct + '%');
+    setEl('backup-speed', p.speedBps > 0 ? formatBytes(p.speedBps) + '/s' : '-');
+    setEl('backup-eta', p.eta || '-');
+
+    // 故事感進度文字
+    const storyEl = document.getElementById('backup-current-story');
+    if (storyEl) {
+        if (p.phase === 'scanning') {
+            storyEl.textContent = t('backup.scanning');
+        } else if (p.currentMonth && p.totalFiles > 0) {
+            const [year, month] = p.currentMonth.split('-');
+            const lang = getLang();
+            if (lang === 'zh-TW') {
+                storyEl.textContent = `正在備份 ${year} 年 ${parseInt(month)} 月的回憶 · 第 ${fmt(p.doneFiles)} / ${fmt(p.totalFiles)} 個`;
+            } else {
+                const monthName = new Date(+year, +month - 1).toLocaleString('en', { month: 'long' });
+                storyEl.textContent = `Backing up memories from ${monthName} ${year} · ${fmt(p.doneFiles)} of ${fmt(p.totalFiles)}`;
+            }
+        } else if (p.totalFiles > 0) {
+            storyEl.textContent = getLang() === 'zh-TW'
+                ? `正在備份第 ${fmt(p.doneFiles)} / ${fmt(p.totalFiles)} 個`
+                : `Backing up file ${fmt(p.doneFiles)} of ${fmt(p.totalFiles)}`;
+        }
+    }
+
+    const skipEl = document.getElementById('backup-skip-count');
+    if (skipEl) {
+        const sk = p.skippedFiles ?? 0;
+        skipEl.textContent = sk > 0
+            ? t('backup.skipped').replace('{n}', fmt(sk))
+            : '';
+    }
+}
+
+// ============================================================
+// READY 動作
 // ============================================================
 
 async function onSelectFolder() {
@@ -503,10 +664,8 @@ async function onSelectFolder() {
 
 async function onStartBackup() {
     if (!currentDevice?.udid || !selectedPath) return;
-
     const btn = document.getElementById('btn-start-backup');
     if (btn) btn.disabled = true;
-
     try {
         const convertHeic = document.getElementById('convert-heic')?.checked ?? false;
         await StartBackup({
@@ -525,30 +684,6 @@ async function onStartBackup() {
 }
 
 // ============================================================
-// 進度更新
-// ============================================================
-
-function updateProgressUI(p) {
-    const pct = (p.percent ?? 0).toFixed(1);
-    const bar = document.getElementById('backup-progress-bar');
-    if (bar) bar.style.width = pct + '%';
-
-    setEl('backup-percent', pct + '%');
-    setEl('backup-speed', p.speedBps > 0 ? formatBytes(p.speedBps) + '/s' : '-');
-    setEl('backup-eta', p.eta || '-');
-    setEl('backup-current-file', p.currentFile
-        ? `${t('backup.current')} ${p.currentFile}`
-        : t('backup.scanning'));
-    setEl('backup-done-count', `${fmt(p.doneFiles ?? 0)} / ${fmt(p.totalFiles ?? 0)} ${t('backup.sheets')}`);
-
-    const skipEl = document.getElementById('backup-skip-count');
-    if (skipEl) {
-        const sk = p.skippedFiles ?? 0;
-        skipEl.textContent = sk > 0 ? t('backup.skipped').replace('{n}', fmt(sk)) : '';
-    }
-}
-
-// ============================================================
 // 輔助函式
 // ============================================================
 
@@ -557,7 +692,6 @@ async function fetchPhotoCount(udid) {
         const detail = await GetDeviceDetail(udid);
         if (!detail) return;
         if (currentDevice) currentDevice.photoCount = detail.photoCount;
-        // 更新 READY 頁照片數
         const readyCount = document.getElementById('ready-photo-count');
         if (readyCount && currentState === 'ready') {
             readyCount.textContent = `${fmt(detail.photoCount)} ${t('ready.files_count')}`;
@@ -581,6 +715,21 @@ async function estimateSize(udid, path) {
     } catch (e) {
         setEl('estimate-size', '-');
     }
+}
+
+function resetDriverMissingView() {
+    const initial    = document.getElementById('install-initial');
+    const pending    = document.getElementById('install-pending');
+    const success    = document.getElementById('install-success');
+    const failMsg    = document.getElementById('install-recheck-fail');
+    const faqContent = document.getElementById('driver-faq-content');
+    const faqIcon    = document.getElementById('faq-toggle-icon');
+    if (initial)    initial.style.display = '';
+    if (pending)    pending.style.display = 'none';
+    if (success)    success.style.display = 'none';
+    if (failMsg)    failMsg.style.display = 'none';
+    if (faqContent) faqContent.style.display = 'none';
+    if (faqIcon)    faqIcon.textContent = '▶';
 }
 
 function setEl(id, text) {
@@ -607,23 +756,6 @@ function formatBytes(bytes) {
     return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
 }
 
-function resetDriverMissingView() {
-    const initial    = document.getElementById('install-initial');
-    const pending    = document.getElementById('install-pending');
-    const success    = document.getElementById('install-success');
-    const detected   = document.getElementById('driver-device-detected');
-    const failMsg    = document.getElementById('install-recheck-fail');
-    const faqContent = document.getElementById('driver-faq-content');
-    const faqIcon    = document.getElementById('faq-toggle-icon');
-    if (initial)    initial.style.display = '';
-    if (pending)    pending.style.display = 'none';
-    if (success)    success.style.display = 'none';
-    if (detected)   detected.style.display = 'none';
-    if (failMsg)    failMsg.style.display = 'none';
-    if (faqContent) faqContent.style.display = 'none';
-    if (faqIcon)    faqIcon.textContent = '▶';
-}
-
 function formatRelativeDate(isoStr) {
     if (!isoStr) return '';
     try {
@@ -633,7 +765,9 @@ function formatRelativeDate(isoStr) {
         const lang = getLang();
         if (diffDays === 0) return lang === 'zh-TW' ? '今天' : 'Today';
         if (diffDays === 1) return lang === 'zh-TW' ? '昨天' : 'Yesterday';
-        if (diffDays < 30) return lang === 'zh-TW' ? `${diffDays} 天前` : `${diffDays} days ago`;
+        if (diffDays < 7)  return lang === 'zh-TW' ? `${diffDays} 天前` : `${diffDays} days ago`;
+        const diffWeeks = Math.floor(diffDays / 7);
+        if (diffWeeks < 5) return lang === 'zh-TW' ? `${diffWeeks} 週前` : `${diffWeeks} weeks ago`;
         const diffMonths = Math.floor(diffDays / 30);
         return lang === 'zh-TW' ? `${diffMonths} 個月前` : `${diffMonths} months ago`;
     } catch (e) { return isoStr; }

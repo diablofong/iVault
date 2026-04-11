@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -176,6 +177,11 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 	go func() {
 		result, err := engine.Run(ctx)
 		if err != nil && err != context.Canceled {
+			// 記錄中斷狀態
+			cur := a.configMgr.Get()
+			cur.LastInterrupted = true
+			_ = a.configMgr.Save(cur)
+
 			if be, ok := err.(*backup.BackupError); ok {
 				wailsRuntime.EventsEmit(a.ctx, "backup:error", map[string]any{
 					"code": be.Code, "message": be.Message, "recoverable": be.Recoverable,
@@ -188,23 +194,45 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 			return
 		}
 		if result != nil {
-			// 寫入備份歷史
+			if result.Interrupted {
+				// 中斷：更新 config 中斷旗標與進度
+				cur := a.configMgr.Get()
+				cur.LastInterrupted = true
+				cur.InterruptedDone = result.InterruptedDone
+				cur.InterruptedTotal = result.InterruptedTotal
+				_ = a.configMgr.Save(cur)
+				wailsRuntime.EventsEmit(a.ctx, "backup:interrupted", result)
+				return
+			}
+
+			// 成功完成：清除中斷旗標
+			cur := a.configMgr.Get()
+			cur.LastInterrupted = false
+			cur.InterruptedDone = 0
+			cur.InterruptedTotal = 0
+			if !cur.FirstBackupDone {
+				cur.FirstBackupDone = true
+			}
+			_ = a.configMgr.Save(cur)
+
 			_ = a.configMgr.AddRecord(config.BackupRecord{
-				Date:       time.Now().Format(time.RFC3339),
-				DeviceName: cfg.DeviceName,
-				DeviceUDID: cfg.DeviceUDID,
-				NewFiles:   result.NewFiles,
-				Skipped:    result.SkippedFiles,
-				Failed:     result.FailedFiles,
-				TotalBytes: result.TotalBytes,
-				Duration:   result.Duration,
+				Date:        time.Now().Format(time.RFC3339),
+				DeviceName:  cfg.DeviceName,
+				DeviceUDID:  cfg.DeviceUDID,
+				NewFiles:    result.NewFiles,
+				PhotosCount: result.PhotosCount,
+				VideosCount: result.VideosCount,
+				Skipped:     result.SkippedFiles,
+				Failed:      result.FailedFiles,
+				TotalBytes:  result.TotalBytes,
+				Duration:    result.Duration,
 			})
 			wailsRuntime.EventsEmit(a.ctx, "backup:complete", result)
 
-			// 若勾選了「轉存 JPEG」且備份結果含 HEIC，啟動轉檔
+			// 若勾選了「轉存 JPEG」且備份結果含 HEIC，啟動轉檔（綁定 cancel context）
 			if cfg.ConvertHeic && result.HasHeic {
 				converter := heic.NewConverter(92, emitFn)
-				go converter.ConvertAll(a.ctx, cfg.BackupPath)
+				go converter.ConvertAll(ctx, cfg.BackupPath)
 			}
 		}
 	}()
@@ -239,13 +267,32 @@ func (a *App) GetBackupHistory() []config.BackupRecord {
 	return a.configMgr.Get().History
 }
 
-// OpenFolder 用系統檔案管理員開啟指定資料夾
+// OpenFolder 用系統檔案管理員開啟指定資料夾。
+// 安全：必須為絕對本機路徑、不得為 UNC（\\host\share），且必須存在。
+// 阻擋的主要威脅是前端被注入後傳入 UNC 路徑觸發 SMB 連線而洩漏 NTLM hash。
 func (a *App) OpenFolder(path string) error {
+	if path == "" {
+		return fmt.Errorf("invalid path")
+	}
+	if strings.HasPrefix(path, `\\`) || strings.HasPrefix(path, "//") {
+		return fmt.Errorf("UNC path not allowed")
+	}
+	if !filepath.IsAbs(path) {
+		return fmt.Errorf("path must be absolute")
+	}
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		return fmt.Errorf("path not accessible")
+	}
 	return platform.OpenFolder(path)
 }
 
-// OpenURL 用系統瀏覽器開啟 URL
+// OpenURL 用系統瀏覽器開啟 URL。
+// 安全：只允許 http(s) scheme，避免前端傳入 file://、ms-settings:、javascript: 等
+// 會被 Windows FileProtocolHandler 解析成本機操作的 URI。
 func (a *App) OpenURL(url string) error {
+	if !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {
+		return fmt.Errorf("only http/https URLs are allowed")
+	}
 	return platform.OpenURL(url)
 }
 
@@ -341,8 +388,13 @@ func (a *App) watchDevices() {
 			}
 			if err := platform.EnsureAMDSRunning(); err != nil {
 				if !amdsFailNotified {
-					wailsRuntime.EventsEmit(a.ctx, "amds:start_failed", map[string]any{
-						"error": err.Error(),
+					errMsg := err.Error()
+					eventName := "amds:start_failed"
+					if errMsg == "AMDS_TIMEOUT" {
+						eventName = "amds:timeout"
+					}
+					wailsRuntime.EventsEmit(a.ctx, eventName, map[string]any{
+						"error": errMsg,
 					})
 					amdsFailNotified = true
 				}
@@ -421,7 +473,7 @@ func (a *App) runDeviceListener() {
 	}
 }
 
-// startTrustPolling 每 2 秒輪詢信任狀態，直到信任或斷線
+// startTrustPolling 每 2 秒輪詢信任狀態，60 秒超時後 emit trust:timeout
 func (a *App) startTrustPolling(udid string) {
 	if a.trustCancel != nil {
 		a.trustCancel()
@@ -432,9 +484,13 @@ func (a *App) startTrustPolling(udid string) {
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
+		timeout := time.After(60 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
+				return
+			case <-timeout:
+				wailsRuntime.EventsEmit(a.ctx, "trust:timeout", nil)
 				return
 			case <-ticker.C:
 				trusted, err := a.CheckTrustStatus(udid)

@@ -9,5 +9,12 @@
   "author": {
     "name": "diablofong",
     "email": "diablofong@gmail.com"
+  },
+  "info": {
+    "companyName": "diablofong",
+    "productName": "iVault",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2026 diablofong",
+    "comments": "iPhone Photo Backup — Free, fast, local."
   }
 }

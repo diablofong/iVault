@@ -30,7 +30,7 @@ func NewOrganizer(backupPath, deviceName string, organizeByDate bool) *Organizer
 // 結構：{backupPath}/{deviceName}/{filename}（flat，之後由 ResolveByDate 移動）
 func (o *Organizer) ResolveLocalPath(file device.PhotoFile) string {
 	dir := filepath.Join(o.backupPath, o.deviceName, ".staging")
-	candidate := filepath.Join(dir, file.FileName)
+	candidate := filepath.Join(dir, safeFileName(file.FileName))
 	return o.resolveConflict(candidate)
 }
 
@@ -47,7 +47,7 @@ func (o *Organizer) ResolveByDate(file device.PhotoFile, stagingPath string, sho
 		dir = filepath.Join(o.backupPath, o.deviceName)
 	}
 
-	finalPath := o.resolveConflictInDir(dir, file.FileName)
+	finalPath := o.resolveConflictInDir(dir, safeFileName(file.FileName))
 
 	if err := moveFile(stagingPath, finalPath); err != nil {
 		// 移動失敗，保留 staging 路徑（仍算備份成功）
@@ -103,4 +103,27 @@ func sanitizeFilename(name string) string {
 		`<`, "_", `>`, "_", `|`, "_",
 	)
 	return strings.TrimSpace(replacer.Replace(name))
+}
+
+// safeFileName 將來自 iPhone AFC 的檔名清理為安全的純檔名，
+// 防止 ../ 路徑穿越、絕對路徑、含路徑分隔符 / 控制字元等攻擊。
+// 若無法得到有效檔名，回傳以 nanoseconds 為後綴的 fallback。
+func safeFileName(name string) string {
+	// 先用 filepath.Base 摘掉任何目錄成分（同時處理 / 與 \）
+	base := filepath.Base(filepath.Clean(strings.ReplaceAll(name, `\`, "/")))
+
+	// 拒絕非法 / 危險值
+	if base == "." || base == ".." || base == "" || base == string(filepath.Separator) {
+		return fmt.Sprintf("unknown_%d", time.Now().UnixNano())
+	}
+
+	// 拒絕含 NUL / 換行 / CR 等控制字元（亦可阻止 PS 腳本注入）
+	for _, r := range base {
+		if r < 0x20 || r == 0x7f {
+			return fmt.Sprintf("unknown_%d", time.Now().UnixNano())
+		}
+	}
+
+	// 套用 Windows 不允許字元的替換
+	return sanitizeFilename(base)
 }

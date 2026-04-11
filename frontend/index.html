@@ -10,32 +10,33 @@
 
     <!-- 標題列拖拽區 -->
     <div class="titlebar">
-        <div class="titlebar-logo">
-            <span class="titlebar-logo-icon">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                    <path d="M9 1.5L2.5 4.5v4.5c0 3.5 2.8 6.7 6.5 7.5 3.7-.8 6.5-4 6.5-7.5V4.5L9 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                    <circle cx="9" cy="7" r="0.8" fill="currentColor"/>
-                    <line x1="9" y1="9" x2="9" y2="12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-            </span>
-            <span class="titlebar-logo-text">iVault</span>
-        </div>
-        <div class="titlebar-controls">
+        <div class="titlebar-pill">
+            <div class="titlebar-logo">
+                <span class="titlebar-logo-icon">
+                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                        <path d="M9 1.5L2.5 4.5v4.5c0 3.5 2.8 6.7 6.5 7.5 3.7-.8 6.5-4 6.5-7.5V4.5L9 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                        <circle cx="9" cy="7" r="0.8" fill="currentColor"/>
+                        <line x1="9" y1="9" x2="9" y2="12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <span class="titlebar-logo-text">iVault</span>
+            </div>
+            <div class="titlebar-divider"></div>
             <div class="lang-toggle" id="btn-lang-toggle">
                 <span class="lang-opt active" id="lang-opt-zh">中</span>
                 <span class="lang-opt" id="lang-opt-en">EN</span>
             </div>
-            <div class="titlebar-buttons">
-                <button class="titlebar-btn minimize" id="btn-minimize">&#x2014;</button>
-                <button class="titlebar-btn close" id="btn-close">&#x2715;</button>
-            </div>
+        </div>
+        <div class="titlebar-buttons">
+            <button class="titlebar-btn minimize" id="btn-minimize">&#x2014;</button>
+            <button class="titlebar-btn close" id="btn-close">&#x2715;</button>
         </div>
     </div>
 
     <!-- 主內容區 -->
     <div class="main-content">
 
-        <!-- IDLE：等待連接 -->
+        <!-- IDLE：等待連接（三變體） -->
         <div class="state-view" id="view-idle">
             <div class="card">
                 <div class="state-icon idle-icon">
@@ -45,15 +46,33 @@
                         <line x1="28" y1="28" x2="28" y2="39" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
                     </svg>
                 </div>
-                <h2 data-i18n="idle.title">請連接 iPhone</h2>
-                <p class="state-desc" data-i18n="idle.desc">使用 USB 線將 iPhone 連接到電腦</p>
-                <p class="state-hint" data-i18n="idle.hint">支援 iOS 14 以上</p>
-                <p class="privacy-badge" data-i18n="idle.privacy">本機備份，不上雲 · 照片不會從 iPhone 刪除</p>
+
+                <!-- 變體 A：初次使用 -->
+                <div class="idle-variant" id="idle-variant-first">
+                    <h2 class="idle-hero-title" data-i18n="idle.first.title">把 iPhone 的照片與影片，備份到這台電腦。</h2>
+                    <p class="state-hint idle-cta" data-i18n="idle.first.cta">用 USB 線連接 iPhone 開始</p>
+                    <p class="idle-tagline" data-i18n="idle.first.tagline">完全離線 · 開源免費 · 原始畫質</p>
+                </div>
+
+                <!-- 變體 B：回訪 -->
+                <div class="idle-variant" id="idle-variant-returning" style="display:none">
+                    <h2 data-i18n="idle.returning.title">歡迎回來</h2>
+                    <p class="state-hint" id="idle-last-backup-info"></p>
+                    <p class="state-hint idle-cta" data-i18n="idle.returning.cta">用 USB 線連接 iPhone 繼續</p>
+                </div>
+
+                <!-- 變體 C：中斷後 -->
+                <div class="idle-variant" id="idle-variant-interrupted" style="display:none">
+                    <h2 data-i18n="idle.interrupted.title">你的上次備份被打斷了</h2>
+                    <p class="state-hint" id="idle-interrupted-info"></p>
+                    <p class="state-hint idle-cta" data-i18n="idle.interrupted.cta">重新連接 iPhone 繼續備份</p>
+                </div>
+
                 <p class="amds-status" id="amds-status" style="display:none" data-i18n="idle.amds_starting">正在啟動 Apple Devices 服務...</p>
             </div>
         </div>
 
-        <!-- DEVICE_FOUND：偵測到裝置，自動轉換中 -->
+        <!-- DEVICE_FOUND：偵測到裝置 -->
         <div class="state-view" id="view-device-found">
             <div class="card">
                 <div class="state-icon">
@@ -86,49 +105,43 @@
                             </div>
                         </div>
                     </div>
-                    <!-- 側邊按鈕裝飾 -->
                     <div class="iphone-side-btn iphone-side-right"></div>
                 </div>
 
                 <h2 data-i18n="trust.title">請看你的 iPhone，點「信任」</h2>
-                <p class="state-desc" data-i18n="trust.desc">iPhone 可能需要輸入解鎖密碼</p>
                 <div class="spinner-row">
-                    <div class="spinner"></div>
-                    <span class="spinner-label" data-i18n="trust.waiting">等待中...</span>
+                    <div class="spinner trust-spinner"></div>
+                    <span class="spinner-label" data-i18n="trust.waiting">正在等待 iPhone 信任回應…</span>
                 </div>
+                <p class="state-hint trust-slow-hint" id="trust-slow-hint" style="display:none" data-i18n="trust.hint_slow">iPhone 螢幕是否亮著？信任視窗有時需要解鎖手機才會出現</p>
             </div>
         </div>
 
-        <!-- DRIVER_MISSING：Windows 缺少 Apple Devices -->
+        <!-- DRIVER_MISSING：Windows 缺少 Apple Devices（減法設計） -->
         <div class="state-view" id="view-driver-missing">
             <div class="card">
-                <div class="state-icon warning-icon">
-                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-                        <path d="M28 8L50 46H6L28 8Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-                        <line x1="28" y1="24" x2="28" y2="36" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                        <circle cx="28" cy="41" r="1.5" fill="currentColor"/>
+                <div class="state-icon">
+                    <!-- Apple 標誌形象 -->
+                    <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                        <rect x="2" y="2" width="48" height="48" rx="12" stroke="currentColor" stroke-width="2" opacity="0.5"/>
+                        <path d="M30.5 14c.4-1.5.1-3-.8-4.2-1.2 1.2-2.1 2.8-1.8 4.4 1 .1 1.9-.1 2.6-.2z" fill="currentColor" opacity="0.8"/>
+                        <path d="M34.4 28.4c0-3.4 2.8-5 2.9-5.1-1.6-2.3-4-2.6-4.9-2.7-2.1-.2-4.1 1.2-5.1 1.2-1.1 0-2.7-1.2-4.4-1.1-2.3.1-4.4 1.3-5.5 3.4-2.4 4.1-.6 10.1 1.7 13.4 1.1 1.6 2.5 3.4 4.2 3.4 1.7-.1 2.3-1.1 4.4-1.1 2 0 2.6 1.1 4.4 1 1.8 0 3-1.6 4.1-3.2.8-1.2 1.4-2.5 1.7-3.8-1.8-.8-3.5-2.6-3.5-5.4z" fill="currentColor" opacity="0.8"/>
                     </svg>
                 </div>
-                <!-- WMI 偵測到裝置時顯示 -->
-                <p class="driver-device-detected" id="driver-device-detected" style="display:none">
-                    <span data-i18n="driver.wmi_detected">偵測到你的</span>
-                    <strong id="driver-device-name-wmi"></strong>
-                </p>
-                <h2 data-i18n="driver.title">需要安裝 Apple Devices</h2>
-                <p class="state-hint" data-i18n="driver.only_once">只需安裝一次 · Apple 官方免費 App</p>
-                <p class="state-desc" data-i18n="driver.desc">需要免費的「Apple Devices」App 才能讀取 iPhone 照片</p>
+                <h2 data-i18n="driver.title">需要先安裝 Apple Devices（免費）</h2>
+                <p class="state-hint" data-i18n="driver.subtitle">由 Apple 官方提供，只需安裝一次</p>
+
                 <!-- 安裝前 -->
                 <div id="install-initial">
-                    <button class="btn-primary" id="btn-install-driver" data-i18n="driver.open_store">前往 Microsoft Store 安裝</button>
+                    <button class="btn-primary" id="btn-install-driver" data-i18n="driver.open_store">一鍵安裝</button>
                 </div>
-                <!-- 等待使用者完成安裝（JS 切換顯示） -->
+                <!-- 等待安裝 -->
                 <div id="install-pending" style="display:none">
-                    <p class="state-desc" data-i18n="driver.pending_title">已開啟 Microsoft Store</p>
                     <p class="state-hint" data-i18n="driver.hint">安裝完成後，點下方按鈕繼續</p>
                     <button class="btn-primary" id="btn-recheck-driver" data-i18n="driver.recheck">我已安裝完成，重新偵測</button>
                     <p class="install-recheck-fail" id="install-recheck-fail" style="display:none" data-i18n="driver.recheck_fail">尚未偵測到，請確認 Apple Devices 已安裝完成</p>
                 </div>
-                <!-- 安裝完成引導 -->
+                <!-- 安裝完成 -->
                 <div id="install-success" style="display:none">
                     <div class="install-success-icon">
                         <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
@@ -140,22 +153,14 @@
                     <p class="state-hint" data-i18n="driver.success_hint">請重新插拔 iPhone 以繼續</p>
                     <button class="btn-primary" id="btn-replug-done" data-i18n="driver.replug_done">繼續</button>
                 </div>
-                <!-- FAQ 展開 -->
+
+                <!-- FAQ 收進連結 -->
                 <div class="driver-faq">
                     <button class="btn-faq-toggle" id="btn-faq-toggle">
-                        <span data-i18n="driver.faq_title">常見問題</span>
+                        <span data-i18n="driver.faq_toggle">為什麼需要？</span>
                         <span class="faq-toggle-icon" id="faq-toggle-icon">▶</span>
                     </button>
-                    <div id="driver-faq-content" style="display:none">
-                        <div class="faq-item">
-                            <p class="faq-q" data-i18n="driver.faq_q1">為什麼需要這個 App？</p>
-                            <p class="faq-a" data-i18n="driver.faq_a1">Apple Devices 是 Apple 官方提供的免費驅動程式，讓 Windows 能辨識 iPhone。</p>
-                        </div>
-                        <div class="faq-item">
-                            <p class="faq-q" data-i18n="driver.faq_q2">這樣安全嗎？</p>
-                            <p class="faq-a" data-i18n="driver.faq_a2">完全安全。這是 Microsoft Store 官方上架的 Apple 軟體，iVault 不會存取 Apple 帳號。</p>
-                        </div>
-                    </div>
+                    <p id="driver-faq-content" class="faq-answer" style="display:none" data-i18n="driver.faq_a">Apple Devices 是 Apple 官方提供的免費驅動程式，讓 Windows 能辨識 iPhone。完全安全，iVault 不會存取你的 Apple 帳號。</p>
                 </div>
             </div>
         </div>
@@ -208,9 +213,8 @@
                     <span class="metric-sep">·</span>
                     <span>剩餘 <span id="backup-eta">-</span></span>
                 </div>
-                <p class="state-hint" id="backup-current-file">準備中...</p>
+                <p class="state-hint" id="backup-current-story">準備中...</p>
                 <p class="backup-count">
-                    <span id="backup-done-count">0 / 0 張</span>
                     <span id="backup-skip-count" class="skip-count"></span>
                 </p>
                 <button class="btn-secondary" id="btn-cancel-backup" data-i18n="backup.cancel">取消</button>
@@ -219,40 +223,42 @@
 
         <!-- DONE：備份完成 -->
         <div class="state-view" id="view-done">
-            <div class="card">
-                <div class="state-icon success-icon">
-                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-                        <circle cx="28" cy="28" r="22" stroke="currentColor" stroke-width="2.5"/>
-                        <path d="M19 28l7 7 11-14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </div>
-                <h2 data-i18n="done.title">備份完成</h2>
-                <p class="state-hint done-duration" id="done-duration"></p>
-
-                <!-- 備份大小 -->
-                <div class="backup-size-display" id="done-total-size" style="display:none">
-                    <span data-i18n="done.total_size">已安全備份</span>
-                    <strong id="done-total-size-value">-</strong>
-                </div>
-
-                <div class="done-stats">
-                    <div class="stat-item">
-                        <span class="stat-number metric" id="done-new-count">0</span>
-                        <span class="stat-label" data-i18n="done.label_new">新增</span>
+            <div class="card card-done">
+                <!-- 頂部成功區 -->
+                <div class="done-header">
+                    <div class="state-icon success-icon">
+                        <svg width="48" height="48" viewBox="0 0 56 56" fill="none">
+                            <circle cx="28" cy="28" r="22" stroke="currentColor" stroke-width="2.5"/>
+                            <path d="M19 28l7 7 11-14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
                     </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat-item">
-                        <span class="stat-number metric" id="done-skip-count">0</span>
-                        <span class="stat-label" data-i18n="done.label_skip">略過</span>
-                    </div>
-                    <div class="stat-divider"></div>
-                    <div class="stat-item">
-                        <span class="stat-number metric" id="done-fail-count">0</span>
-                        <span class="stat-label" data-i18n="done.label_fail">失敗</span>
-                    </div>
+                    <h2 id="done-main-title">備份完成</h2>
+                    <p class="state-hint done-subtitle" id="done-subtitle"></p>
+                    <!-- 首次備份彩蛋 -->
+                    <p class="done-first-egg" id="done-first-egg" style="display:none" data-i18n="done.first_egg">這是你用 iVault 備份的第一次。歡迎。</p>
                 </div>
 
-                <!-- 失敗清單（可展開） -->
+                <!-- Bento Grid：四格統計 -->
+                <div class="bento-grid">
+                    <div class="bento-cell bento-stat">
+                        <div class="bento-stat-number metric" id="done-photos-count">0</div>
+                        <div class="bento-stat-label" data-i18n="done.label_photos">照片</div>
+                    </div>
+                    <div class="bento-cell bento-stat">
+                        <div class="bento-stat-number metric" id="done-videos-count">0</div>
+                        <div class="bento-stat-label" data-i18n="done.label_videos">影片</div>
+                    </div>
+                    <div class="bento-cell bento-stat">
+                        <div class="bento-stat-number metric" id="done-total-size-value">-</div>
+                        <div class="bento-stat-label" data-i18n="done.label_size">空間</div>
+                    </div>
+                    <div class="bento-cell bento-stat">
+                        <div class="bento-stat-number metric" id="done-duration-value">-</div>
+                        <div class="bento-stat-label" data-i18n="done.label_duration">花了</div>
+                    </div>
+                </div>
+
+                <!-- 失敗統計（有失敗才顯示） -->
                 <div id="failed-section" style="display:none">
                     <button class="btn-failed-toggle" id="btn-toggle-failed">
                         <span class="failed-toggle-icon" id="failed-toggle-icon">▶</span>
@@ -263,16 +269,7 @@
                     <div id="failed-list" class="failed-list"></div>
                 </div>
 
-                <button class="btn-secondary" id="btn-open-folder" data-i18n="done.open_folder">開啟備份資料夾</button>
-                <button class="btn-primary" id="btn-backup-again" data-i18n="done.back">返回首頁</button>
-
-                <div class="sponsor">
-                    <div class="sponsor-divider"></div>
-                    <p class="sponsor-text" data-i18n="sponsor.text">這工具幫你省了不少時間，給我一杯咖啡？☕</p>
-                    <button class="btn-sponsor" id="btn-sponsor" data-i18n="sponsor.btn">$5 支持開發</button>
-                </div>
-
-                <!-- HEIC 轉檔進度（convertHeic 啟用時顯示） -->
+                <!-- HEIC 轉檔進度 -->
                 <div class="heic-convert-progress" id="heic-convert-section" style="display:none">
                     <div class="heic-convert-bar-wrap">
                         <div class="progress-bar">
@@ -282,10 +279,26 @@
                     </div>
                 </div>
 
+                <!-- HEIC 擴充提示（Windows） -->
                 <div class="heic-hint" id="heic-hint" style="display:none">
                     <p data-i18n="done.heic_hint">你備份的照片含有 .heic 格式，Windows 需安裝擴充才能預覽</p>
                     <button class="btn-heic-install" id="btn-install-heic" data-i18n="done.heic_install">一鍵安裝（免費）</button>
                 </div>
+
+                <!-- 行動按鈕：主次分明 -->
+                <div class="done-actions">
+                    <button class="btn-primary done-open-folder" id="btn-open-folder" data-i18n="done.open_folder">開啟備份資料夾 →</button>
+                    <button class="btn-secondary" id="btn-backup-again" data-i18n="done.back">完成</button>
+                </div>
+
+                <!-- 贊助（克制） -->
+                <div class="sponsor">
+                    <div class="sponsor-divider"></div>
+                    <p class="sponsor-text" data-i18n="sponsor.text">iVault 永遠免費開源。如果它幫到你，請我喝杯咖啡 →</p>
+                    <button class="btn-sponsor" id="btn-sponsor" data-i18n="sponsor.btn">$5 支持開發</button>
+                </div>
+
+                <div class="particle-container" id="particle-container" aria-hidden="true"></div>
             </div>
         </div>
 

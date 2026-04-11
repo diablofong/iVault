@@ -15,6 +15,7 @@ import (
 )
 
 const copyBufferSize = 256 * 1024 // 256KB
+const afcCallTimeout = 30 * time.Second
 
 // Engine 核心備份引擎
 type Engine struct {
@@ -33,6 +34,80 @@ func NewEngine(config BackupConfig, emitFn func(string, any)) *Engine {
 		organizer: NewOrganizer(config.BackupPath, config.DeviceName, config.OrganizeByDate),
 		speed:     NewSpeedTracker(),
 		emitFn:    emitFn,
+	}
+}
+
+// isPhotoExt 判斷副檔名是否為靜態照片
+func isPhotoExt(ext string) bool {
+	switch ext {
+	case ".jpg", ".jpeg", ".heic", ".heif", ".png", ".tiff", ".tif":
+		return true
+	}
+	return false
+}
+
+// isVideoExt 判斷副檔名是否為影片
+func isVideoExt(ext string) bool {
+	switch ext {
+	case ".mov", ".mp4", ".m4v":
+		return true
+	}
+	return false
+}
+
+// afcList 執行 AFC List，帶 30 秒 hard timeout，避免 AFC 卡死讓整個 app hang。
+func afcList(ctx context.Context, client *afc.Client, dirPath string) ([]string, error) {
+	type result struct {
+		files []string
+		err   error
+	}
+	tctx, cancel := context.WithTimeout(ctx, afcCallTimeout)
+	defer cancel()
+	ch := make(chan result, 1)
+	go func() {
+		f, e := client.List(dirPath)
+		// 若 caller 已超時離開，select 避免在無人接收的 channel 上永久 block（1 容量其實能寫入，
+		// 但改成雙路更清楚地表達「caller 已放棄」的語意，也方便未來擴充為 unbuffered channel）。
+		select {
+		case ch <- result{f, e}:
+		case <-tctx.Done():
+		}
+	}()
+	select {
+	case r := <-ch:
+		return r.files, r.err
+	case <-tctx.Done():
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, ErrAFCTimeout
+	}
+}
+
+// afcStat 執行 AFC Stat，帶 30 秒 hard timeout。
+func afcStat(ctx context.Context, client *afc.Client, remotePath string) (afc.FileInfo, error) {
+	type result struct {
+		info afc.FileInfo
+		err  error
+	}
+	tctx, cancel := context.WithTimeout(ctx, afcCallTimeout)
+	defer cancel()
+	ch := make(chan result, 1)
+	go func() {
+		info, e := client.Stat(remotePath)
+		select {
+		case ch <- result{info, e}:
+		case <-tctx.Done():
+		}
+	}()
+	select {
+	case r := <-ch:
+		return r.info, r.err
+	case <-tctx.Done():
+		if ctx.Err() != nil {
+			return afc.FileInfo{}, ctx.Err()
+		}
+		return afc.FileInfo{}, ErrAFCTimeout
 	}
 }
 
@@ -57,8 +132,13 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 		if isDeviceDisconnected(err) {
 			return nil, ErrDeviceDisconnected
 		}
+		if err == ErrAFCTimeout {
+			return nil, ErrAFCTimeout
+		}
 		return nil, fmt.Errorf("scan failed: %w", err)
 	}
+
+	totalFiles := len(newFiles)
 
 	// 磁碟空間檢查
 	var totalNewBytes int64
@@ -72,7 +152,7 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 
 	e.emit("backup:progress", BackupProgress{
 		Phase:        "scanning",
-		TotalFiles:   len(newFiles) + skippedCount,
+		TotalFiles:   totalFiles + skippedCount,
 		SkippedFiles: skippedCount,
 		TotalBytes:   totalNewBytes,
 	})
@@ -81,18 +161,24 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 	buf := make([]byte, copyBufferSize)
 	var doneBytes int64
 
+	saveInterrupted := func(doneCount int) *BackupResult {
+		_ = e.manifest.SaveInterrupted()
+		result.Interrupted = true
+		result.InterruptedDone = doneCount
+		result.InterruptedTotal = totalFiles + skippedCount
+		result.NewFiles = doneCount
+		result.SkippedFiles = skippedCount
+		result.FailedFiles = len(result.FailedList)
+		result.TotalBytes = doneBytes
+		result.Duration = formatDuration(time.Since(e.startTime))
+		return result
+	}
+
 	for i, file := range newFiles {
 		// 檢查取消
 		select {
 		case <-ctx.Done():
-			_ = e.manifest.Save()
-			result.Interrupted = true
-			result.NewFiles = i
-			result.SkippedFiles = skippedCount
-			result.FailedFiles = len(result.FailedList)
-			result.TotalBytes = doneBytes
-			result.Duration = formatDuration(time.Since(e.startTime))
-			return result, nil
+			return saveInterrupted(i), nil
 		default:
 		}
 
@@ -105,14 +191,7 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 
 		if copyErr != nil {
 			if isDeviceDisconnected(copyErr) {
-				_ = e.manifest.Save()
-				result.Interrupted = true
-				result.NewFiles = i
-				result.SkippedFiles = skippedCount
-				result.FailedFiles = len(result.FailedList)
-				result.TotalBytes = doneBytes
-				result.Duration = formatDuration(time.Since(e.startTime))
-				return result, ErrDeviceDisconnected
+				return saveInterrupted(i), ErrDeviceDisconnected
 			}
 			result.FailedList = append(result.FailedList, FailedFile{
 				FileName: file.FileName,
@@ -131,10 +210,10 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 			continue
 		}
 
-		// 讀 EXIF 取得拍攝日期，移動到正確的 YYYY-MM 目錄
+		// 讀取拍攝日期（按副檔名分派：JPEG/HEIC/影片各走不同路徑）
 		shootDate, ok := ReadShootDate(localPath)
 		if !ok {
-			shootDate = time.Now() // HEIC / 無 EXIF → 用備份當天日期
+			shootDate = time.Now() // 無法解析 → 用備份當天日期
 		}
 		localPath = e.organizer.ResolveByDate(file, localPath, shootDate)
 		localRelPath = e.organizer.RelativeLocalPath(localPath)
@@ -143,25 +222,35 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 		e.speed.Add(n, elapsed)
 		doneBytes += n
 
-		// HEIC 偵測
+		// 統計照片 / 影片數量，並偵測 HEIC
 		ext := strings.ToLower(path.Ext(file.FileName))
-		if ext == ".heic" || ext == ".heif" {
-			result.HasHeic = true
+		if isPhotoExt(ext) {
+			result.PhotosCount++
+			if ext == ".heic" || ext == ".heif" {
+				result.HasHeic = true
+			}
+		} else if isVideoExt(ext) {
+			result.VideosCount++
 		}
 
-		// 進度推送
+		// 進度推送（currentMonth 供前端顯示「正在備份 YYYY 年 M 月」）
+		currentMonth := ""
+		if ok {
+			currentMonth = shootDate.Format("2006-01")
+		}
 		remaining := totalNewBytes - doneBytes
 		e.emit("backup:progress", BackupProgress{
 			Phase:        "copying",
 			CurrentFile:  file.FileName,
-			TotalFiles:   len(newFiles),
+			CurrentMonth: currentMonth,
+			TotalFiles:   totalFiles,
 			DoneFiles:    i + 1,
 			SkippedFiles: skippedCount,
 			TotalBytes:   totalNewBytes,
 			DoneBytes:    doneBytes,
 			SpeedBps:     int64(e.speed.Average()),
 			ETA:          formatDuration(e.speed.ETA(remaining)),
-			Percent:      float64(i+1) / float64(len(newFiles)) * 100,
+			Percent:      float64(i+1) / float64(totalFiles) * 100,
 		})
 
 		// 每 50 個檔案存一次 manifest
@@ -171,10 +260,10 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 	}
 
 	// === Phase 3: Finalizing ===
-	_ = e.manifest.Save()
+	_ = e.manifest.SaveCompleted()
 
 	result.Success = true
-	result.NewFiles = len(newFiles) - len(result.FailedList)
+	result.NewFiles = totalFiles - len(result.FailedList)
 	result.SkippedFiles = skippedCount
 	result.FailedFiles = len(result.FailedList)
 	result.TotalBytes = doneBytes
@@ -183,11 +272,11 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 	return result, nil
 }
 
-// scanDCIM 兩階段掃描：
+// scanDCIM 兩階段掃描（含 AFC call timeout）：
 // Phase 1a — 只用 List() 拿檔名，與 manifest 比對，已備份的直接跳過
 // Phase 1b — 只對新檔案 Stat() 拿 size
 func (e *Engine) scanDCIM(ctx context.Context, afcClient *afc.Client) (newFiles []device.PhotoFile, skippedCount int, err error) {
-	dirs, err := afcClient.List("/DCIM")
+	dirs, err := afcList(ctx, afcClient, "/DCIM")
 	if err != nil {
 		return nil, 0, fmt.Errorf("list /DCIM: %w", err)
 	}
@@ -205,8 +294,11 @@ func (e *Engine) scanDCIM(ctx context.Context, afcClient *afc.Client) (newFiles 
 		}
 
 		dirPath := "/DCIM/" + dir
-		files, listErr := afcClient.List(dirPath)
+		files, listErr := afcList(ctx, afcClient, dirPath)
 		if listErr != nil {
+			if listErr == ErrAFCTimeout {
+				return nil, 0, ErrAFCTimeout
+			}
 			continue
 		}
 
@@ -226,8 +318,11 @@ func (e *Engine) scanDCIM(ctx context.Context, afcClient *afc.Client) (newFiles 
 
 			// Phase 1b：新檔案才 Stat 拿 size
 			remotePath := dirPath + "/" + fileName
-			fileInfo, statErr := afcClient.Stat(remotePath)
+			fileInfo, statErr := afcStat(ctx, afcClient, remotePath)
 			if statErr != nil {
+				if statErr == ErrAFCTimeout {
+					return nil, 0, ErrAFCTimeout
+				}
 				continue
 			}
 
