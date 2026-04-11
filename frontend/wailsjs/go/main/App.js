@@ -81,3 +81,7 @@ export function SelectBackupFolder() {
 export function StartBackup(arg1) {
   return window['go']['main']['App']['StartBackup'](arg1);
 }
+
+export function TriggerTrustCheck(arg1) {
+  return window['go']['main']['App']['TriggerTrustCheck'](arg1);
+}

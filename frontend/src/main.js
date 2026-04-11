@@ -6,6 +6,7 @@ import {
     GetConnectedDevice,
     GetDeviceDetail,
     CheckTrustStatus,
+    TriggerTrustCheck,
     CheckAppleDevicesInstalled,
     SelectBackupFolder,
     GetDefaultBackupPath,
@@ -32,6 +33,7 @@ let backupResult = null;
 let platformInfo = null;
 let appConfig = null;
 let trustHintTimer = null;
+let trustHardHintTimer = null;
 
 function setState(newState, data = {}) {
     if (!STATES.includes(newState)) {
@@ -44,9 +46,9 @@ function setState(newState, data = {}) {
     }
 
     // 離開 trust-guide 時清除提示計時器
-    if (currentState === 'trust-guide' && trustHintTimer) {
-        clearTimeout(trustHintTimer);
-        trustHintTimer = null;
+    if (currentState === 'trust-guide') {
+        if (trustHintTimer) { clearTimeout(trustHintTimer); trustHintTimer = null; }
+        if (trustHardHintTimer) { clearTimeout(trustHardHintTimer); trustHardHintTimer = null; }
     }
 
     // AMDS 提示只在 IDLE 時有效
@@ -294,6 +296,28 @@ function bindHandlers() {
         if (icon) icon.textContent = expanded ? '▶' : '▼';
     });
 
+    // TRUST_GUIDE
+    document.getElementById('btn-trust-recheck')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        if (!currentDevice?.udid) return;
+        btn.disabled = true;
+        try {
+            const ok = await TriggerTrustCheck(currentDevice.udid);
+            if (!ok) {
+                // 仍未偵測到：震一下按鈕 + 立即顯示強力提示
+                btn.classList.add('shake');
+                setTimeout(() => btn.classList.remove('shake'), 600);
+                const h = document.getElementById('trust-hard-hint');
+                if (h) h.style.display = '';
+            }
+            // 若 ok，後端會 emit device:trust-changed，現有 handler 會切 ready
+        } catch (err) {
+            console.error('TriggerTrustCheck failed', err);
+        } finally {
+            setTimeout(() => { btn.disabled = false; }, 400);
+        }
+    });
+
     // READY
     document.getElementById('btn-select-folder')?.addEventListener('click', onSelectFolder);
     document.getElementById('btn-start-backup')?.addEventListener('click', onStartBackup);
@@ -421,15 +445,23 @@ async function onEnterDeviceFound(info) {
 }
 
 function onEnterTrustGuide() {
-    // 重設慢速提示
-    const hint = document.getElementById('trust-slow-hint');
-    if (hint) hint.style.display = 'none';
+    // 重設兩層提示
+    const slow = document.getElementById('trust-slow-hint');
+    if (slow) slow.style.display = 'none';
+    const hard = document.getElementById('trust-hard-hint');
+    if (hard) hard.style.display = 'none';
 
-    // 10 秒後淡入次要提示
+    // 10 秒後淡入次要提示（手機可能沒解鎖）
     trustHintTimer = setTimeout(() => {
         const h = document.getElementById('trust-slow-hint');
         if (h && currentState === 'trust-guide') h.style.display = '';
     }, 10000);
+
+    // 15 秒後顯示強力提示（請拔插 USB）
+    trustHardHintTimer = setTimeout(() => {
+        const h = document.getElementById('trust-hard-hint');
+        if (h && currentState === 'trust-guide') h.style.display = '';
+    }, 15000);
 }
 
 async function onEnterReady(info) {

@@ -186,7 +186,7 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 		localRelPath := e.organizer.RelativeLocalPath(localPath)
 
 		start := time.Now()
-		n, copyErr := CopyFileBuffered(afcClient, file.RemotePath, localPath, buf)
+		n, copyErr := CopyFileBuffered(ctx, afcClient, file.RemotePath, localPath, buf)
 		elapsed := time.Since(start)
 
 		if copyErr != nil {

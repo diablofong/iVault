@@ -21,6 +21,8 @@ export default {
     'trust.desc':          '在 iPhone 上點「信任」即可繼續',
     'trust.waiting':       '正在等待 iPhone 信任回應…',
     'trust.hint_slow':     'iPhone 螢幕是否亮著？信任視窗有時需要解鎖手機才會出現',
+    'trust.hint_hard':     '如果你已點信任卻仍無反應，請拔掉 USB 線後重新插入一次',
+    'trust.recheck':       '我已信任，繼續',
     'trust.timeout_title': '沒收到信任回應',
     'trust.timeout_desc':  '請拔掉重插 iPhone 試試',
     'trust.retry':         '重試',

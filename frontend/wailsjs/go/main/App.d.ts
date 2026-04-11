@@ -44,3 +44,5 @@ export function ScanDCIM(arg1:string):Promise<Array<device.PhotoFile>>;
 export function SelectBackupFolder():Promise<string>;
 
 export function StartBackup(arg1:backup.BackupConfig):Promise<void>;
+
+export function TriggerTrustCheck(arg1:string):Promise<boolean>;

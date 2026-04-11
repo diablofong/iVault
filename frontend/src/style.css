@@ -524,8 +524,35 @@ button:focus:not(:focus-visible) { outline: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* trust 慢速提示（10 秒後淡入） */
-.trust-slow-hint {
+.trust-slow-hint,
+.trust-hard-hint {
     animation: fade-in 600ms ease both;
+    margin-top: 10px;
+}
+
+.trust-hard-hint {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* TRUST_GUIDE 主要 CTA（「我已信任」按鈕） */
+.trust-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+.trust-actions .btn {
+    min-width: 200px;
+}
+.trust-actions .btn.shake {
+    animation: shake 480ms cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translateX(-1px); }
+    20%, 80% { transform: translateX(2px); }
+    30%, 50%, 70% { transform: translateX(-4px); }
+    40%, 60% { transform: translateX(4px); }
 }
 
 @keyframes fade-in {

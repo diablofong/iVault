@@ -21,6 +21,8 @@ export default {
     'trust.desc':          'Tap "Trust" on your iPhone to continue',
     'trust.waiting':       'Waiting for iPhone trust response…',
     'trust.hint_slow':     'Is your iPhone screen on? The trust prompt may require unlocking your iPhone first.',
+    'trust.hint_hard':     'If you already tapped Trust but nothing happens, unplug the USB cable and plug it back in.',
+    'trust.recheck':       "I've Trusted, Continue",
     'trust.timeout_title': 'No trust response received',
     'trust.timeout_desc':  'Try unplugging and reconnecting your iPhone',
     'trust.retry':         'Retry',

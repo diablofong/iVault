@@ -100,6 +100,25 @@ func (a *App) CheckTrustStatus(udid string) (bool, error) {
 	return false, fmt.Errorf("device not found: %s", udid)
 }
 
+// TriggerTrustCheck 由前端「我已信任，繼續」按鈕觸發，立即查一次信任狀態，
+// 不等 polling tick。若已信任就同步 emit device:trust-changed，
+// 讓前端直接切到 READY；否則回傳 false 讓使用者得到明確回饋。
+func (a *App) TriggerTrustCheck(udid string) bool {
+	trusted, err := a.CheckTrustStatus(udid)
+	if err != nil || !trusted {
+		return false
+	}
+	a.mu.Lock()
+	if a.connectedDevice != nil {
+		a.connectedDevice.Trusted = true
+	}
+	a.mu.Unlock()
+	wailsRuntime.EventsEmit(a.ctx, "device:trust-changed", map[string]any{
+		"udid": udid, "trusted": true,
+	})
+	return true
+}
+
 // CheckAppleDevicesInstalled Windows 專用：每次都做即時偵測（不用快取）
 func (a *App) CheckAppleDevicesInstalled() bool {
 	return platform.RecheckAppleDevices()
@@ -473,7 +492,8 @@ func (a *App) runDeviceListener() {
 	}
 }
 
-// startTrustPolling 每 2 秒輪詢信任狀態，60 秒超時後 emit trust:timeout
+// startTrustPolling 每 1 秒輪詢信任狀態，60 秒超時後 emit trust:timeout。
+// 使用者按「我已信任」按鈕會另外走 TriggerTrustCheck 強制立即檢查，不等 tick。
 func (a *App) startTrustPolling(udid string) {
 	if a.trustCancel != nil {
 		a.trustCancel()
@@ -482,7 +502,7 @@ func (a *App) startTrustPolling(udid string) {
 	a.trustCancel = cancel
 
 	go func() {
-		ticker := time.NewTicker(2 * time.Second)
+		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
 		timeout := time.After(60 * time.Second)
 		for {
