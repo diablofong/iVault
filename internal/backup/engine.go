@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"ivault/internal/device"
@@ -16,6 +18,7 @@ import (
 
 const copyBufferSize = 256 * 1024 // 256KB
 const afcCallTimeout = 30 * time.Second
+const afcWorkerCount = 2 // Phase 2 並行 AFC session 數（POC：先 2，實測後決定是否加到 4）
 
 // Engine 核心備份引擎
 type Engine struct {
@@ -31,7 +34,7 @@ type Engine struct {
 func NewEngine(config BackupConfig, emitFn func(string, any)) *Engine {
 	return &Engine{
 		config:    config,
-		organizer: NewOrganizer(config.BackupPath, config.DeviceName, config.OrganizeByDate),
+		organizer: NewOrganizer(config.BackupPath, config.DeviceName, config.DeviceUDID, config.OrganizeByDate),
 		speed:     NewSpeedTracker(),
 		emitFn:    emitFn,
 	}
@@ -157,116 +160,211 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 		TotalBytes:   totalNewBytes,
 	})
 
-	// === Phase 2: Copying ===
-	buf := make([]byte, copyBufferSize)
-	var doneBytes int64
+	// === Phase 2: Copying（worker pool，afcWorkerCount 個並行 AFC session）===
+	type copyJob struct {
+		file  device.PhotoFile
+		index int
+	}
+	jobs := make(chan copyJob, totalFiles)
+	for i, f := range newFiles {
+		jobs <- copyJob{f, i}
+	}
+	close(jobs)
 
-	saveInterrupted := func(doneCount int) *BackupResult {
+	var (
+		doneBytes   atomic.Int64
+		doneCount   atomic.Int32
+		resultMu    sync.Mutex
+		fatalErr    error
+		fatalOnce   sync.Once
+		wg          sync.WaitGroup
+	)
+	profiler := NewProfiler(e.config.BackupPath)
+	innerCtx, innerCancel := context.WithCancel(ctx)
+	defer innerCancel()
+
+	saveInterrupted := func() *BackupResult {
 		_ = e.manifest.SaveInterrupted()
+		_ = profiler.Save()
+		profiler.PrintSummary()
 		result.Interrupted = true
-		result.InterruptedDone = doneCount
+		done := int(doneCount.Load())
+		result.InterruptedDone = done
 		result.InterruptedTotal = totalFiles + skippedCount
-		result.NewFiles = doneCount
+		result.NewFiles = done
 		result.SkippedFiles = skippedCount
 		result.FailedFiles = len(result.FailedList)
-		result.TotalBytes = doneBytes
+		result.TotalBytes = doneBytes.Load()
 		result.Duration = formatDuration(time.Since(e.startTime))
 		return result
 	}
 
-	for i, file := range newFiles {
-		// 檢查取消
-		select {
-		case <-ctx.Done():
-			return saveInterrupted(i), nil
-		default:
-		}
-
-		localPath := e.organizer.ResolveLocalPath(file)
-		localRelPath := e.organizer.RelativeLocalPath(localPath)
-
-		start := time.Now()
-		n, copyErr := CopyFileBuffered(ctx, afcClient, file.RemotePath, localPath, buf)
-		elapsed := time.Since(start)
-
-		if copyErr != nil {
-			if isDeviceDisconnected(copyErr) {
-				return saveInterrupted(i), ErrDeviceDisconnected
+	workerFn := func(workerAFC *afc.Client) {
+		buf := make([]byte, copyBufferSize)
+		for job := range jobs {
+			select {
+			case <-innerCtx.Done():
+				return
+			default:
 			}
-			result.FailedList = append(result.FailedList, FailedFile{
-				FileName: file.FileName,
-				Reason:   humanizeError(copyErr),
+
+			file := job.file
+			localPath := e.organizer.ResolveLocalPath(file)
+			localRelPath := e.organizer.RelativeLocalPath(localPath)
+
+			tFile := time.Now()
+
+			tCopy := time.Now()
+			n, copyErr := CopyFileBuffered(innerCtx, workerAFC, file.RemotePath, localPath, buf)
+			copyMs := time.Since(tCopy).Milliseconds()
+
+			if copyErr != nil {
+				if isDeviceDisconnected(copyErr) {
+					fatalOnce.Do(func() {
+						fatalErr = ErrDeviceDisconnected
+						innerCancel()
+					})
+					return
+				}
+				if copyErr == ErrAFCTimeout {
+					fatalOnce.Do(func() {
+						fatalErr = ErrAFCTimeout
+						innerCancel()
+					})
+					return
+				}
+				resultMu.Lock()
+				result.FailedList = append(result.FailedList, FailedFile{
+					FileName: file.FileName,
+					Reason:   humanizeError(copyErr),
+				})
+				resultMu.Unlock()
+				continue
+			}
+
+			// 驗證檔案大小
+			if fi, statErr := os.Stat(localPath); statErr == nil && fi.Size() != file.Size {
+				_ = os.Remove(localPath)
+				resultMu.Lock()
+				result.FailedList = append(result.FailedList, FailedFile{
+					FileName: file.FileName,
+					Reason:   "檔案大小不符，可能傳輸中斷",
+				})
+				resultMu.Unlock()
+				continue
+			}
+
+			// 讀取拍攝日期
+			tExif := time.Now()
+			shootDate, ok := ReadShootDate(localPath)
+			exifMs := time.Since(tExif).Milliseconds()
+			if !ok {
+				shootDate = time.Now()
+			}
+
+			tRename := time.Now()
+			localPath = e.organizer.ResolveByDate(file, localPath, shootDate)
+			localRelPath = e.organizer.RelativeLocalPath(localPath)
+			renameMs := time.Since(tRename).Milliseconds()
+
+			tManifest := time.Now()
+			e.manifest.MarkDone(file, localRelPath)
+			manifestMs := time.Since(tManifest).Milliseconds()
+
+			profiler.Add(ProfileEntry{
+				FileName:   file.FileName,
+				SizeBytes:  file.Size,
+				Ext:        strings.ToLower(path.Ext(file.FileName)),
+				AFCCopyMs:  copyMs,
+				ExifMs:     exifMs,
+				RenameMs:   renameMs,
+				ManifestMs: manifestMs,
+				TotalMs:    time.Since(tFile).Milliseconds(),
 			})
+
+			e.speed.Add(n, time.Since(tFile))
+			totalDone := doneBytes.Add(n)
+
+			ext := strings.ToLower(path.Ext(file.FileName))
+			resultMu.Lock()
+			if isPhotoExt(ext) {
+				result.PhotosCount++
+				if ext == ".heic" || ext == ".heif" {
+					result.HasHeic = true
+				}
+			} else if isVideoExt(ext) {
+				result.VideosCount++
+			}
+			resultMu.Unlock()
+
+			currentMonth := ""
+			if ok {
+				currentMonth = shootDate.Format("2006-01")
+			}
+			n32 := doneCount.Add(1)
+			remaining := totalNewBytes - totalDone
+			e.emit("backup:progress", BackupProgress{
+				Phase:        "copying",
+				CurrentFile:  file.FileName,
+				CurrentMonth: currentMonth,
+				TotalFiles:   totalFiles,
+				DoneFiles:    int(n32),
+				SkippedFiles: skippedCount,
+				TotalBytes:   totalNewBytes,
+				DoneBytes:    totalDone,
+				SpeedBps:     int64(e.speed.Average()),
+				ETA:          formatDuration(e.speed.ETA(remaining)),
+				Percent:      float64(n32) / float64(totalFiles) * 100,
+			})
+
+			if int(n32)%50 == 0 {
+				_ = e.manifest.Save()
+			}
+		}
+	}
+
+	// 啟動 worker pool：每個 worker 各自獨立的 AFC session
+	var launchedWorkers int
+	for w := 0; w < afcWorkerCount; w++ {
+		workerAFC, err := device.ConnectAFC(e.config.DeviceUDID)
+		if err != nil {
 			continue
 		}
+		launchedWorkers++
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer workerAFC.Close()
+			workerFn(workerAFC)
+		}()
+	}
+	if launchedWorkers == 0 {
+		return nil, ErrAFCConnectFailed
+	}
+	wg.Wait()
+	innerCancel()
 
-		// 驗證檔案大小
-		if fi, statErr := os.Stat(localPath); statErr == nil && fi.Size() != file.Size {
-			_ = os.Remove(localPath)
-			result.FailedList = append(result.FailedList, FailedFile{
-				FileName: file.FileName,
-				Reason:   "檔案大小不符，可能傳輸中斷",
-			})
-			continue
-		}
-
-		// 讀取拍攝日期（按副檔名分派：JPEG/HEIC/影片各走不同路徑）
-		shootDate, ok := ReadShootDate(localPath)
-		if !ok {
-			shootDate = time.Now() // 無法解析 → 用備份當天日期
-		}
-		localPath = e.organizer.ResolveByDate(file, localPath, shootDate)
-		localRelPath = e.organizer.RelativeLocalPath(localPath)
-
-		e.manifest.MarkDone(file, localRelPath)
-		e.speed.Add(n, elapsed)
-		doneBytes += n
-
-		// 統計照片 / 影片數量，並偵測 HEIC
-		ext := strings.ToLower(path.Ext(file.FileName))
-		if isPhotoExt(ext) {
-			result.PhotosCount++
-			if ext == ".heic" || ext == ".heif" {
-				result.HasHeic = true
-			}
-		} else if isVideoExt(ext) {
-			result.VideosCount++
-		}
-
-		// 進度推送（currentMonth 供前端顯示「正在備份 YYYY 年 M 月」）
-		currentMonth := ""
-		if ok {
-			currentMonth = shootDate.Format("2006-01")
-		}
-		remaining := totalNewBytes - doneBytes
-		e.emit("backup:progress", BackupProgress{
-			Phase:        "copying",
-			CurrentFile:  file.FileName,
-			CurrentMonth: currentMonth,
-			TotalFiles:   totalFiles,
-			DoneFiles:    i + 1,
-			SkippedFiles: skippedCount,
-			TotalBytes:   totalNewBytes,
-			DoneBytes:    doneBytes,
-			SpeedBps:     int64(e.speed.Average()),
-			ETA:          formatDuration(e.speed.ETA(remaining)),
-			Percent:      float64(i+1) / float64(totalFiles) * 100,
-		})
-
-		// 每 50 個檔案存一次 manifest
-		if (i+1)%50 == 0 {
-			_ = e.manifest.Save()
-		}
+	// 判斷是否中斷
+	if fatalErr == ErrDeviceDisconnected {
+		return saveInterrupted(), ErrDeviceDisconnected
+	}
+	if fatalErr != nil {
+		return saveInterrupted(), fatalErr
+	}
+	if ctx.Err() != nil {
+		return saveInterrupted(), nil
 	}
 
 	// === Phase 3: Finalizing ===
 	_ = e.manifest.SaveCompleted()
+	_ = profiler.Save()
+	profiler.PrintSummary()
 
 	result.Success = true
 	result.NewFiles = totalFiles - len(result.FailedList)
 	result.SkippedFiles = skippedCount
 	result.FailedFiles = len(result.FailedList)
-	result.TotalBytes = doneBytes
+	result.TotalBytes = doneBytes.Load()
 	result.Duration = formatDuration(time.Since(e.startTime))
 
 	return result, nil

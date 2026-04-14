@@ -13,23 +13,36 @@ import (
 // Organizer 負責決定備份檔案的本機路徑
 type Organizer struct {
 	backupPath     string
-	deviceName     string
+	deviceFolder   string // "{deviceName} ({udid[:8]})"
 	organizeByDate bool
 }
 
-// NewOrganizer 建立 Organizer
-func NewOrganizer(backupPath, deviceName string, organizeByDate bool) *Organizer {
+// NewOrganizer 建立 Organizer；deviceFolder 格式為 "{deviceName} ({udid前8碼})"
+func NewOrganizer(backupPath, deviceName, udid string, organizeByDate bool) *Organizer {
 	return &Organizer{
 		backupPath:     backupPath,
-		deviceName:     sanitizeFilename(deviceName),
+		deviceFolder:   folderName(deviceName, udid),
 		organizeByDate: organizeByDate,
 	}
 }
 
+// folderName 產生裝置資料夾名稱，格式："{deviceName} ({udid前8碼})"
+// 確保同一使用者的多台手機或改名的手機各自分開存放。
+func folderName(deviceName, udid string) string {
+	name := strings.TrimSpace(sanitizeFilename(deviceName))
+	if name == "" {
+		name = "iPhone"
+	}
+	if len(udid) >= 8 {
+		return fmt.Sprintf("%s (%s)", name, udid[:8])
+	}
+	return name
+}
+
 // ResolveLocalPath 決定檔案的暫存本機路徑（尚未讀 EXIF）
-// 結構：{backupPath}/{deviceName}/{filename}（flat，之後由 ResolveByDate 移動）
+// 結構：{backupPath}/{deviceFolder}/.staging/{filename}（之後由 ResolveByDate 移動）
 func (o *Organizer) ResolveLocalPath(file device.PhotoFile) string {
-	dir := filepath.Join(o.backupPath, o.deviceName, ".staging")
+	dir := filepath.Join(o.backupPath, o.deviceFolder, ".staging")
 	candidate := filepath.Join(dir, safeFileName(file.FileName))
 	return o.resolveConflict(candidate)
 }
@@ -42,9 +55,9 @@ func (o *Organizer) ResolveByDate(file device.PhotoFile, stagingPath string, sho
 	var dir string
 	if o.organizeByDate {
 		yearMonth := shootDate.Format("2006-01")
-		dir = filepath.Join(o.backupPath, o.deviceName, yearMonth)
+		dir = filepath.Join(o.backupPath, o.deviceFolder, yearMonth)
 	} else {
-		dir = filepath.Join(o.backupPath, o.deviceName)
+		dir = filepath.Join(o.backupPath, o.deviceFolder)
 	}
 
 	finalPath := o.resolveConflictInDir(dir, safeFileName(file.FileName))
