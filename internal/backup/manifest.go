@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"ivault/internal/device"
@@ -20,7 +21,8 @@ type Manifest struct {
 	Interrupted bool                     `json:"interrupted"` // 上次備份是否被中斷
 	Files       map[string]ManifestEntry `json:"files"`
 
-	filePath string // 不序列化
+	filePath string    // 不序列化
+	mu       sync.Mutex // 保護並行 worker 同時 MarkDone / Save
 }
 
 // ManifestEntry 單一檔案的備份紀錄
@@ -70,8 +72,10 @@ func (m *Manifest) IsBackedUp(file device.PhotoFile) bool {
 	return entry.Size == file.Size && entry.ModTime == file.ModTime
 }
 
-// MarkDone 標記檔案已備份
+// MarkDone 標記檔案已備份（thread-safe）
 func (m *Manifest) MarkDone(file device.PhotoFile, localPath string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.Files[file.RelativePath()] = ManifestEntry{
 		Size:       file.Size,
 		ModTime:    file.ModTime,
@@ -81,8 +85,15 @@ func (m *Manifest) MarkDone(file device.PhotoFile, localPath string) {
 	m.UpdatedAt = time.Now().Format(time.RFC3339)
 }
 
-// Save 寫入磁碟（中斷時 interrupted=true，完成時 interrupted=false）
+// Save 寫入磁碟（thread-safe；中斷時 interrupted=true，完成時 interrupted=false）
 func (m *Manifest) Save() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.saveLocked()
+}
+
+// saveLocked 寫入磁碟（呼叫方須持有 m.mu）
+func (m *Manifest) saveLocked() error {
 	if err := os.MkdirAll(filepath.Dir(m.filePath), 0755); err != nil {
 		return err
 	}
@@ -94,16 +105,26 @@ func (m *Manifest) Save() error {
 	return os.WriteFile(m.filePath, data, 0600)
 }
 
-// SaveInterrupted 標記中斷狀態並寫入磁碟
+// SaveInterrupted 標記中斷狀態並寫入磁碟（thread-safe）
 func (m *Manifest) SaveInterrupted() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.Interrupted = true
-	return m.Save()
+	return m.saveLocked()
 }
 
-// SaveCompleted 標記完成狀態並寫入磁碟
+// SaveCompleted 標記完成狀態並寫入磁碟（thread-safe）
 func (m *Manifest) SaveCompleted() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.Interrupted = false
-	return m.Save()
+	return m.saveLocked()
+}
+
+// ManifestExists 檢查備份路徑下是否有該裝置的 manifest 檔案
+func ManifestExists(backupPath, udid string) bool {
+	_, err := os.Stat(manifestPath(backupPath, udid))
+	return err == nil
 }
 
 func manifestPath(backupPath, udid string) string {
