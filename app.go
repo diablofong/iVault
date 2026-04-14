@@ -16,7 +16,6 @@ import (
 	"ivault/internal/platform"
 
 	"github.com/danielpaulus/go-ios/ios"
-	"github.com/danielpaulus/go-ios/ios/afc"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -130,6 +129,11 @@ func (a *App) InstallAppleDevices() {
 	_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9K")
 }
 
+// InstallHeicCodec Windows 專用：開啟 Microsoft Store HEIC 影像擴充頁面
+func (a *App) InstallHeicCodec() {
+	_ = platform.OpenURL("ms-windows-store://pdp?productId=9PMMSR1CGPWG")
+}
+
 // ============================================================
 // 備份相關 API
 // ============================================================
@@ -152,6 +156,13 @@ func (a *App) GetDefaultBackupPath() string {
 		return last
 	}
 	return platform.GetDefaultBackupPath()
+}
+
+// ManifestExists 檢查備份路徑下是否存有指定裝置的 manifest（斷點記錄）
+// 前端用來判斷「全部已是最新」是否還有效：若備份資料夾被刪，manifest 消失，
+// 就不該再顯示「全部已是最新」，避免誤導使用者。
+func (a *App) ManifestExists(backupPath, udid string) bool {
+	return backup.ManifestExists(backupPath, udid)
 }
 
 // GetDiskInfo 取得指定路徑的磁碟空間資訊
@@ -313,50 +324,6 @@ func (a *App) OpenURL(url string) error {
 		return fmt.Errorf("only http/https URLs are allowed")
 	}
 	return platform.OpenURL(url)
-}
-
-// ============================================================
-// PoC 方法（Step 0.3/0.4 遺留，後續可移除）
-// ============================================================
-
-// ListDevices 回傳所有已連接的 iOS 裝置
-func (a *App) ListDevices() ([]device.DeviceInfo, error) {
-	return device.ListDevices()
-}
-
-// ScanDCIM 掃描裝置 DCIM 目錄，回傳照片清單
-func (a *App) ScanDCIM(udid string) ([]device.PhotoFile, error) {
-	return device.ScanDCIM(udid)
-}
-
-// CopyFirstPhoto PoC：複製 DCIM 第一張照片到本機 Pictures\iVault_test\
-func (a *App) CopyFirstPhoto(udid string) (*backup.CopyResult, error) {
-	photos, err := device.ScanDCIM(udid)
-	if err != nil {
-		return nil, err
-	}
-	if len(photos) == 0 {
-		return nil, fmt.Errorf("no photos found")
-	}
-	deviceList, err := ios.ListDevices()
-	if err != nil {
-		return nil, err
-	}
-	var d ios.DeviceEntry
-	for _, dev := range deviceList.DeviceList {
-		if dev.Properties.SerialNumber == udid {
-			d = dev
-			break
-		}
-	}
-	afcClient, err := afc.New(d)
-	if err != nil {
-		return nil, fmt.Errorf("afc connect: %w", err)
-	}
-	defer afcClient.Close()
-	home, _ := os.UserHomeDir()
-	destDir := filepath.Join(home, "Pictures", "iVault_test")
-	return backup.CopyFile(afcClient, photos[0].RemotePath, destDir)
 }
 
 // ============================================================

@@ -120,9 +120,22 @@ func GetNonSystemDisks() []DiskInfo {
 	return disks
 }
 
-// GetDiskInfo 取得指定路徑的磁碟空間
+// GetDiskInfo 取得指定路徑的磁碟空間。
+// 若目標路徑不存在（例如備份資料夾被刪），沿路徑往上找到第一個存在的目錄，
+// 確保磁碟可用空間永遠能正確顯示（至少顯示磁碟根目錄的剩餘空間）。
 func GetDiskInfo(path string) DiskInfo {
-	return getDiskSpace(path)
+	p := path
+	for {
+		if _, err := os.Stat(p); err == nil {
+			break
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			break // 到達根目錄仍找不到，直接用原路徑
+		}
+		p = parent
+	}
+	return getDiskSpace(p)
 }
 
 // OpenFolder 用 Explorer 開啟資料夾

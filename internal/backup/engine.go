@@ -18,7 +18,7 @@ import (
 
 const copyBufferSize = 256 * 1024 // 256KB
 const afcCallTimeout = 30 * time.Second
-const afcWorkerCount = 2 // Phase 2 並行 AFC session 數（POC：先 2，實測後決定是否加到 4）
+const afcWorkerCount = 1 // usbmuxd 序列化限制：worker=2 僅提升 8% 但 p95 延遲爆增 3.4×，維持 1
 
 // Engine 核心備份引擎
 type Engine struct {
@@ -179,14 +179,11 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 		fatalOnce   sync.Once
 		wg          sync.WaitGroup
 	)
-	profiler := NewProfiler(e.config.BackupPath)
 	innerCtx, innerCancel := context.WithCancel(ctx)
 	defer innerCancel()
 
 	saveInterrupted := func() *BackupResult {
 		_ = e.manifest.SaveInterrupted()
-		_ = profiler.Save()
-		profiler.PrintSummary()
 		result.Interrupted = true
 		done := int(doneCount.Load())
 		result.InterruptedDone = done
@@ -214,9 +211,7 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 
 			tFile := time.Now()
 
-			tCopy := time.Now()
 			n, copyErr := CopyFileBuffered(innerCtx, workerAFC, file.RemotePath, localPath, buf)
-			copyMs := time.Since(tCopy).Milliseconds()
 
 			if copyErr != nil {
 				if isDeviceDisconnected(copyErr) {
@@ -255,32 +250,15 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 			}
 
 			// 讀取拍攝日期
-			tExif := time.Now()
 			shootDate, ok := ReadShootDate(localPath)
-			exifMs := time.Since(tExif).Milliseconds()
 			if !ok {
 				shootDate = time.Now()
 			}
 
-			tRename := time.Now()
 			localPath = e.organizer.ResolveByDate(file, localPath, shootDate)
 			localRelPath = e.organizer.RelativeLocalPath(localPath)
-			renameMs := time.Since(tRename).Milliseconds()
 
-			tManifest := time.Now()
 			e.manifest.MarkDone(file, localRelPath)
-			manifestMs := time.Since(tManifest).Milliseconds()
-
-			profiler.Add(ProfileEntry{
-				FileName:   file.FileName,
-				SizeBytes:  file.Size,
-				Ext:        strings.ToLower(path.Ext(file.FileName)),
-				AFCCopyMs:  copyMs,
-				ExifMs:     exifMs,
-				RenameMs:   renameMs,
-				ManifestMs: manifestMs,
-				TotalMs:    time.Since(tFile).Milliseconds(),
-			})
 
 			e.speed.Add(n, time.Since(tFile))
 			totalDone := doneBytes.Add(n)
@@ -357,8 +335,6 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 
 	// === Phase 3: Finalizing ===
 	_ = e.manifest.SaveCompleted()
-	_ = profiler.Save()
-	profiler.PrintSummary()
 
 	result.Success = true
 	result.NewFiles = totalFiles - len(result.FailedList)

@@ -43,9 +43,21 @@ func GetNonSystemDisks() []DiskInfo {
 	return disks
 }
 
-// GetDiskInfo 取得指定路徑的磁碟空間
+// GetDiskInfo 取得指定路徑的磁碟空間。
+// 若目標路徑不存在，往上找到第一個存在的目錄後取得磁碟資訊。
 func GetDiskInfo(path string) DiskInfo {
-	return getDiskSpace(path)
+	p := path
+	for {
+		if _, err := os.Stat(p); err == nil {
+			break
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			break
+		}
+		p = parent
+	}
+	return getDiskSpace(p)
 }
 
 // OpenFolder 用 Finder 開啟資料夾

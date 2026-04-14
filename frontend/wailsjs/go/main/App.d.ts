@@ -11,8 +11,6 @@ export function CheckAppleDevicesInstalled():Promise<boolean>;
 
 export function CheckTrustStatus(arg1:string):Promise<boolean>;
 
-export function CopyFirstPhoto(arg1:string):Promise<backup.CopyResult>;
-
 export function EstimateBackupSize(arg1:string,arg2:string):Promise<number>;
 
 export function GetBackupHistory():Promise<Array<config.BackupRecord>>;
@@ -29,17 +27,17 @@ export function GetPlatformInfo():Promise<platform.Info>;
 
 export function InstallAppleDevices():Promise<void>;
 
-export function ListDevices():Promise<Array<device.DeviceInfo>>;
+export function InstallHeicCodec():Promise<void>;
 
 export function LoadConfig():Promise<config.AppConfig>;
+
+export function ManifestExists(arg1:string,arg2:string):Promise<boolean>;
 
 export function OpenFolder(arg1:string):Promise<void>;
 
 export function OpenURL(arg1:string):Promise<void>;
 
 export function SaveConfig(arg1:config.AppConfig):Promise<void>;
-
-export function ScanDCIM(arg1:string):Promise<Array<device.PhotoFile>>;
 
 export function SelectBackupFolder():Promise<string>;
 

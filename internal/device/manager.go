@@ -96,6 +96,12 @@ func ScanDCIM(udid string) ([]PhotoFile, error) {
 
 	var photos []PhotoFile
 	for _, dir := range dirs {
+		// 只計算 *APPLE 目錄，與備份引擎邏輯保持一致，
+		// 避免 UI 顯示的數量和實際備份數量不同
+		if !strings.HasSuffix(dir, "APPLE") {
+			continue
+		}
+
 		dirPath := "/DCIM/" + dir
 
 		dirInfo, err := afcClient.Stat(dirPath)

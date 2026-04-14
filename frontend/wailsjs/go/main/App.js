@@ -14,10 +14,6 @@ export function CheckTrustStatus(arg1) {
   return window['go']['main']['App']['CheckTrustStatus'](arg1);
 }
 
-export function CopyFirstPhoto(arg1) {
-  return window['go']['main']['App']['CopyFirstPhoto'](arg1);
-}
-
 export function EstimateBackupSize(arg1, arg2) {
   return window['go']['main']['App']['EstimateBackupSize'](arg1, arg2);
 }
@@ -50,12 +46,16 @@ export function InstallAppleDevices() {
   return window['go']['main']['App']['InstallAppleDevices']();
 }
 
-export function ListDevices() {
-  return window['go']['main']['App']['ListDevices']();
+export function InstallHeicCodec() {
+  return window['go']['main']['App']['InstallHeicCodec']();
 }
 
 export function LoadConfig() {
   return window['go']['main']['App']['LoadConfig']();
+}
+
+export function ManifestExists(arg1, arg2) {
+  return window['go']['main']['App']['ManifestExists'](arg1, arg2);
 }
 
 export function OpenFolder(arg1) {
@@ -68,10 +68,6 @@ export function OpenURL(arg1) {
 
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
-}
-
-export function ScanDCIM(arg1) {
-  return window['go']['main']['App']['ScanDCIM'](arg1);
 }
 
 export function SelectBackupFolder() {
