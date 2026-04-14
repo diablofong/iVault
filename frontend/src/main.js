@@ -11,6 +11,7 @@ import {
     SelectBackupFolder,
     GetDefaultBackupPath,
     GetDiskInfo,
+    ManifestExists,
     EstimateBackupSize,
     StartBackup,
     CancelBackup,
@@ -18,6 +19,7 @@ import {
     OpenFolder,
     OpenURL,
     InstallAppleDevices,
+    InstallHeicCodec,
 } from '../wailsjs/go/main/App';
 import { t, renderAll, setLang, getLang } from './i18n.js';
 
@@ -154,18 +156,40 @@ function registerEvents() {
 
     EventsOn('backup:complete', (result) => {
         backupResult = result;
-        // 更新 appConfig 快取（IDLE variant 需要）
+        // E-10: 更新前端 appConfig 快取，避免回 READY 時顯示舊歷史
         if (appConfig) {
             appConfig.lastInterrupted = false;
             appConfig.firstBackupDone = true;
+            appConfig.history = [{
+                date: new Date().toISOString(),
+                deviceName: currentDevice?.name || 'iPhone',
+                deviceUdid: currentDevice?.udid || '',
+                photosCount: result.photosCount ?? 0,
+                videosCount: result.videosCount ?? 0,
+                newFiles: result.newFiles ?? 0,
+                skipped: result.skippedFiles ?? 0,
+                failed: result.failedFiles ?? 0,
+                totalBytes: result.totalBytes ?? 0,
+                duration: result.duration || '',
+            }, ...(appConfig.history ?? [])];
         }
         setState('done', result);
     });
 
-    EventsOn('backup:interrupted', () => {
-        // 中斷時回 IDLE，顯示中斷變體
-        if (appConfig) appConfig.lastInterrupted = true;
-        setState('idle');
+    EventsOn('backup:interrupted', (result) => {
+        // E-11: 取消後若 iPhone 仍插著 → 直接回 READY，不繞 IDLE
+        if (appConfig) {
+            appConfig.lastInterrupted = true;
+            if (result) {
+                appConfig.interruptedDone = result.interruptedDone ?? 0;
+                appConfig.interruptedTotal = result.interruptedTotal ?? 0;
+            }
+        }
+        if (currentDevice?.udid) {
+            setState('ready', currentDevice);
+        } else {
+            setState('idle');
+        }
     });
 
     EventsOn('backup:error', (err) => {
@@ -351,7 +375,7 @@ function bindHandlers() {
     });
 
     document.getElementById('btn-install-heic')?.addEventListener('click', () => {
-        OpenURL('ms-windows-store://pdp?productId=9PMMSR1CGPWG');
+        InstallHeicCodec();
     });
 
     // ERROR
@@ -369,7 +393,7 @@ function bindHandlers() {
 // 狀態進入處理
 // ============================================================
 
-function onEnterIdle() {
+async function onEnterIdle() {
     const cfg = appConfig;
     const history = cfg?.history ?? [];
     const isInterrupted = cfg?.lastInterrupted === true;
@@ -393,8 +417,21 @@ function onEnterIdle() {
             }
         }
     } else if (isReturning) {
-        document.getElementById('idle-variant-returning').style.display = '';
+        // E-13: 確認 manifest 存在，避免資料夾被刪後還顯示 returning 變體
         const rec = history[0];
+        const backupPath = cfg?.lastBackupPath || '';
+        const backupUdid = rec?.deviceUdid || '';
+        let manifestOk = false;
+        if (backupPath && backupUdid) {
+            try { manifestOk = await ManifestExists(backupPath, backupUdid); } catch (e) {}
+        } else {
+            manifestOk = true; // 無法驗證時樂觀顯示（避免舊版 config 無 udid 欄位的使用者倒退）
+        }
+        if (!manifestOk) {
+            document.getElementById('idle-variant-first').style.display = '';
+            return;
+        }
+        document.getElementById('idle-variant-returning').style.display = '';
         const dateStr = formatRelativeDate(rec.date);
         const photos = rec.photosCount ?? 0;
         const videos = rec.videosCount ?? 0;
@@ -402,7 +439,6 @@ function onEnterIdle() {
         if (infoEl) {
             const lang = getLang();
             if (photos === 0 && videos === 0) {
-                // 全部已是最新，不顯示「0 張」
                 infoEl.textContent = lang === 'zh-TW'
                     ? `上次備份：${dateStr} · 全部已是最新`
                     : `Last backed up: ${dateStr} · Everything is up to date`;
@@ -477,30 +513,84 @@ async function onEnterReady(info) {
     const checkbox = document.getElementById('convert-heic');
     if (checkbox && appConfig) checkbox.checked = !!appConfig.convertHeic;
 
+    await updateLastBackupRow(selectedPath, info.udid);
+}
+
+// updateLastBackupRow 以正確的優先順序更新 READY 頁的 last-backup-row：
+// 1. manifest 不在（資料夾被刪/換路徑）→「尚未備份過」（lastInterrupted 一律忽略）
+// 2. manifest 在 + lastInterrupted → 顯示中斷狀態
+// 3. manifest 在 + 依 UDID 過濾的 history 紀錄：
+//    - photos+videos === 0 且 estimateSize > 0 → 不顯示「全部已是最新」（E-12）
+//    - 否則依正常邏輯顯示
+// 4. 其他 →「尚未備份過」
+async function updateLastBackupRow(path, udid) {
     const lastBackupRow = document.getElementById('last-backup-row');
     const lastBackupInfo = document.getElementById('last-backup-info');
-    if (appConfig?.history?.length > 0) {
-        const rec = appConfig.history[0];
-        const dateStr = formatRelativeDate(rec.date);
-        const photos = rec.photosCount ?? 0;
-        const videos = rec.videosCount ?? 0;
+    if (!lastBackupRow || !lastBackupInfo) return;
+
+    // Step 1: manifest check（E-6 / E-7）
+    let manifestOk = false;
+    if (path && udid) {
+        try { manifestOk = await ManifestExists(path, udid); } catch (e) {}
+    }
+
+    if (!manifestOk) {
+        lastBackupInfo.textContent = t('ready.no_backup');
+        lastBackupRow.style.display = '';
+        return;
+    }
+
+    // Step 2: lastInterrupted（E-6）
+    if (appConfig?.lastInterrupted) {
+        const done = appConfig.interruptedDone ?? 0;
+        const total = appConfig.interruptedTotal ?? 0;
         const lang = getLang();
         let infoText;
-        if (photos === 0 && videos === 0) {
+        if (done > 0 && total > 0) {
             infoText = lang === 'zh-TW'
+                ? `上次備份中斷 · 已完成 ${fmt(done)} / ${fmt(total)}`
+                : `Last backup interrupted · ${fmt(done)} of ${fmt(total)} done`;
+        } else {
+            infoText = lang === 'zh-TW' ? '上次備份被中斷' : 'Last backup was interrupted';
+        }
+        lastBackupInfo.textContent = infoText;
+        lastBackupRow.style.display = '';
+        return;
+    }
+
+    // Step 3: UDID 過濾的 history（E-8）
+    const history = appConfig?.history ?? [];
+    const rec = udid ? history.find(h => h.deviceUdid === udid) : history[0];
+    if (!rec) {
+        lastBackupInfo.textContent = t('ready.no_backup');
+        lastBackupRow.style.display = '';
+        return;
+    }
+
+    const dateStr = formatRelativeDate(rec.date);
+    const photos = rec.photosCount ?? 0;
+    const videos = rec.videosCount ?? 0;
+    const lang = getLang();
+
+    if (photos === 0 && videos === 0) {
+        // E-12: estimateSize > 0 時不顯示「全部已是最新」
+        let estimateBytes = 0;
+        if (path && udid) {
+            try { estimateBytes = await EstimateBackupSize(udid, path); } catch (e) {}
+        }
+        if (estimateBytes > 0) {
+            lastBackupInfo.textContent = dateStr; // 有新檔待備份，不加「全部已是最新」
+        } else {
+            lastBackupInfo.textContent = lang === 'zh-TW'
                 ? `${dateStr} · 全部已是最新`
                 : `${dateStr} · Everything up to date`;
-        } else if (lang === 'zh-TW') {
-            infoText = `${dateStr} · ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`;
-        } else {
-            infoText = `${dateStr} · ${fmt(photos)} photos · ${fmt(videos)} videos`;
         }
-        if (lastBackupInfo) lastBackupInfo.textContent = infoText;
-        if (lastBackupRow) lastBackupRow.style.display = '';
     } else {
-        if (lastBackupInfo) lastBackupInfo.textContent = t('ready.no_backup');
-        if (lastBackupRow) lastBackupRow.style.display = '';
+        lastBackupInfo.textContent = lang === 'zh-TW'
+            ? `${dateStr} · ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`
+            : `${dateStr} · ${fmt(photos)} photos · ${fmt(videos)} videos`;
     }
+    lastBackupRow.style.display = '';
 }
 
 function onEnterDone(result) {
@@ -533,7 +623,7 @@ function onEnterDone(result) {
     const dateStr = lang === 'zh-TW'
         ? `${now.getMonth() + 1} 月 ${now.getDate()} 日`
         : now.toLocaleDateString('en', { month: 'long', day: 'numeric' });
-    setEl('done-subtitle', `備份於 ${dateStr}` );
+    setEl('done-subtitle', t('done.subtitle').replace('{date}', dateStr));
 
     // 首次彩蛋
     const eggEl = document.getElementById('done-first-egg');
@@ -690,7 +780,11 @@ async function onSelectFolder() {
         selectedPath = path;
         setEl('backup-path', path);
         updateDiskInfo(path);
-        if (currentDevice?.udid) estimateSize(currentDevice.udid, path);
+        if (currentDevice?.udid) {
+            estimateSize(currentDevice.udid, path);
+            // E-9: 換路徑後重算 last-backup-row
+            await updateLastBackupRow(path, currentDevice.udid);
+        }
     } catch (e) {}
 }
 
