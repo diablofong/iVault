@@ -6,9 +6,11 @@ import (
 	"context"
 	"image/jpeg"
 	"os"
+	"sync"
+	"sync/atomic"
 )
 
-// ConvertAll 掃描 backupPath 中所有 HEIC/HEIF，轉為 JPEG 副本（非 Windows / CGo 版）
+// ConvertAll 掃描 backupPath 中所有 HEIC/HEIF，以 heicWorkerCount 個 goroutine 並行轉為 JPEG 副本。
 func (c *Converter) ConvertAll(ctx context.Context, backupPath string) (*ConvertResult, error) {
 	heicFiles := scanHeicFiles(backupPath)
 	toConvert := filterAlreadyConverted(heicFiles)
@@ -21,27 +23,49 @@ func (c *Converter) ConvertAll(ctx context.Context, backupPath string) (*Convert
 		return result, nil
 	}
 
-	for i, heicPath := range toConvert {
-		select {
-		case <-ctx.Done():
-			return result, ctx.Err()
-		default:
-		}
-
-		jpgPath := jpegPath(heicPath)
-		if err := c.convertOne(heicPath, jpgPath); err != nil {
-			result.Failed++
-			continue
-		}
-		result.Converted++
-
-		c.emitFn("heic:progress", map[string]any{
-			"total":   total,
-			"done":    i + 1,
-			"percent": float64(i+1) / float64(total) * 100,
-		})
+	fileCh := make(chan string, len(toConvert))
+	for _, f := range toConvert {
+		fileCh <- f
 	}
+	close(fileCh)
 
+	var converted, failed, done atomic.Int64
+	var wg sync.WaitGroup
+
+	workers := heicWorkerCount
+	if total < workers {
+		workers = total
+	}
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for heicPath := range fileCh {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				jpgPath := jpegPath(heicPath)
+				if err := c.convertOne(heicPath, jpgPath); err != nil {
+					failed.Add(1)
+				} else {
+					converted.Add(1)
+				}
+				n := done.Add(1)
+				c.emitFn("heic:progress", map[string]any{
+					"total":   total,
+					"done":    int(n),
+					"percent": float64(n) / float64(total) * 100,
+				})
+			}
+		}()
+	}
+	wg.Wait()
+
+	result.Converted = int(converted.Load())
+	result.Failed = int(failed.Load())
 	c.emitFn("heic:complete", map[string]any{
 		"converted": result.Converted,
 		"failed":    result.Failed,

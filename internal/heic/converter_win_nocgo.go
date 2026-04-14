@@ -9,9 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
-// ConvertAll Windows 版：以單一 PowerShell 程序批次轉換所有 HEIC。
+// ConvertAll Windows 版：以 heicWorkerCount 個 PowerShell 程序並行轉換所有 HEIC。
 // 需要 Apple Devices App 已安裝（提供 Windows HEIC WIC codec）。
 func (c *Converter) ConvertAll(ctx context.Context, backupPath string) (*ConvertResult, error) {
 	heicFiles := scanHeicFiles(backupPath)
@@ -25,22 +27,47 @@ func (c *Converter) ConvertAll(ctx context.Context, backupPath string) (*Convert
 		return result, nil
 	}
 
-	// 建立批次 PowerShell 腳本：每個檔案輸出 "OK" 或 "FAIL"
+	chunks := splitChunks(toConvert, heicWorkerCount)
+
+	var wg sync.WaitGroup
+	var converted, failed, done atomic.Int64
+
+	for _, chunk := range chunks {
+		wg.Add(1)
+		chunk := chunk
+		go func() {
+			defer wg.Done()
+			c.runPSWorker(ctx, chunk, total, &converted, &failed, &done)
+		}()
+	}
+	wg.Wait()
+
+	result.Converted = int(converted.Load())
+	result.Failed = int(failed.Load())
+	c.emitFn("heic:complete", map[string]any{
+		"converted": result.Converted,
+		"failed":    result.Failed,
+	})
+	return result, nil
+}
+
+// runPSWorker 以單一 PowerShell 程序轉換一個 chunk 的 HEIC 檔案。
+func (c *Converter) runPSWorker(ctx context.Context, files []string, total int, converted, failed, done *atomic.Int64) {
+	var validFiles []string
 	var sb strings.Builder
 	sb.WriteString("[void][System.Reflection.Assembly]::LoadWithPartialName('PresentationCore')\n")
 	sb.WriteString("$q = 92\n")
 
-	for _, src := range toConvert {
-		// 拒絕含控制字元的路徑（\r \n \x00），防止 PS 腳本被注入額外指令。
-		// 雖然上游 organizer.safeFileName 已擋過一次，這裡再做一層深度防禦。
+	for _, src := range files {
+		// 拒絕含控制字元的路徑，防止 PS 腳本注入
 		if strings.ContainsAny(src, "\r\n\x00") {
-			result.Failed++
+			failed.Add(1)
 			continue
 		}
 		dst := jpegPath(src)
-		// PowerShell 單引號字串中的單引號需以 '' 跳脫
 		srcEsc := strings.ReplaceAll(src, "'", "''")
 		dstEsc := strings.ReplaceAll(dst, "'", "''")
+		validFiles = append(validFiles, src)
 		fmt.Fprintf(&sb, `
 try {
     $s = [System.IO.File]::OpenRead('%s')
@@ -64,21 +91,25 @@ try {
 `, srcEsc, dstEsc)
 	}
 
-	// 寫入暫存 .ps1 檔（避免 cmd.exe 命令列長度限制）
+	if len(validFiles) == 0 {
+		return
+	}
+
 	tmpFile, err := os.CreateTemp("", "ivault_heic_*.ps1")
 	if err != nil {
-		return result, fmt.Errorf("建立暫存腳本失敗: %w", err)
+		failed.Add(int64(len(validFiles)))
+		return
 	}
 	scriptPath := tmpFile.Name()
 	defer os.Remove(scriptPath)
 
 	if _, err := tmpFile.WriteString(sb.String()); err != nil {
 		tmpFile.Close()
-		return result, err
+		failed.Add(int64(len(validFiles)))
+		return
 	}
 	tmpFile.Close()
 
-	// 執行單一 PowerShell 程序，串流讀取逐行輸出
 	cmd := exec.CommandContext(ctx,
 		"powershell", "-NoProfile", "-NonInteractive",
 		"-ExecutionPolicy", "Bypass",
@@ -87,13 +118,14 @@ try {
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return result, err
+		failed.Add(int64(len(validFiles)))
+		return
 	}
 	if err := cmd.Start(); err != nil {
-		return result, fmt.Errorf("PowerShell 啟動失敗: %w", err)
+		failed.Add(int64(len(validFiles)))
+		return
 	}
 
-	fileIdx := 0
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -101,22 +133,16 @@ try {
 			continue
 		}
 		if line == "OK" {
-			result.Converted++
+			converted.Add(1)
 		} else {
-			result.Failed++
+			failed.Add(1)
 		}
-		fileIdx++
+		n := done.Add(1)
 		c.emitFn("heic:progress", map[string]any{
 			"total":   total,
-			"done":    fileIdx,
-			"percent": float64(fileIdx) / float64(total) * 100,
+			"done":    int(n),
+			"percent": float64(n) / float64(total) * 100,
 		})
 	}
 	_ = cmd.Wait()
-
-	c.emitFn("heic:complete", map[string]any{
-		"converted": result.Converted,
-		"failed":    result.Failed,
-	})
-	return result, nil
 }

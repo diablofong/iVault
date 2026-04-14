@@ -8,10 +8,33 @@ import (
 	"strings"
 )
 
+// heicWorkerCount 並行轉檔 worker 數量（Windows: 4 PowerShell；macOS/Linux: 4 goroutine）
+const heicWorkerCount = 4
+
 // ConvertResult 轉檔結果
 type ConvertResult struct {
 	Converted int
 	Failed    int
+}
+
+// splitChunks 將切片分成最多 n 個大致均等的子切片
+func splitChunks[T any](items []T, n int) [][]T {
+	if n <= 0 {
+		n = 1
+	}
+	if len(items) < n {
+		n = len(items)
+	}
+	chunks := make([][]T, 0, n)
+	size := (len(items) + n - 1) / n
+	for i := 0; i < len(items); i += size {
+		end := i + size
+		if end > len(items) {
+			end = len(items)
+		}
+		chunks = append(chunks, items[i:end])
+	}
+	return chunks
 }
 
 // Converter HEIC → JPEG 批次轉檔器
