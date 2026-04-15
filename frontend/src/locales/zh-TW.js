@@ -52,7 +52,9 @@ export default {
     'ready.start':       '開始備份',
     'ready.last_backup': '上次備份',
     'ready.no_backup':   '尚未備份過',
-    'ready.files_count': '張',
+    'ready.files_count':    '張',
+    'ready.disk_free':      '可用',
+    'ready.estimate_label': '預估需要',
 
     // BACKING_UP
     'backup.title':    '備份中',

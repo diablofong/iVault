@@ -825,7 +825,7 @@ async function fetchPhotoCount(udid) {
 async function updateDiskInfo(path) {
     try {
         const disk = await GetDiskInfo(path);
-        setEl('disk-free', formatBytes(disk.freeSpace) + ' 可用');
+        setEl('disk-free', formatBytes(disk.freeSpace) + ' ' + t('ready.disk_free'));
     } catch (e) {
         setEl('disk-free', '-');
     }
