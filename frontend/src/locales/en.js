@@ -55,6 +55,8 @@ export default {
     'ready.files_count':    'photos',
     'ready.disk_free':      'available',
     'ready.estimate_label': 'Estimated',
+    'backup.eta_label':     'Remaining',
+    'error.unknown_fallback': 'An unexpected error occurred. Please try again.',
 
     // BACKING_UP
     'backup.title':    'Backing Up',

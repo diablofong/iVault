@@ -55,6 +55,8 @@ export default {
     'ready.files_count':    '張',
     'ready.disk_free':      '可用',
     'ready.estimate_label': '預估需要',
+    'backup.eta_label':     '剩餘',
+    'error.unknown_fallback': '發生未預期的錯誤，請重試。',
 
     // BACKING_UP
     'backup.title':    '備份中',
