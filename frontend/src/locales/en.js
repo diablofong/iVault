@@ -68,10 +68,6 @@ export default {
     'done.heic_hint':     'Your backup contains .heic files. Install the free codec to preview them on Windows.',
     'done.heic_install':  'Install Free Codec',
 
-    // SPONSOR
-    'sponsor.text':   'iVault saved you time and money. Buy me a coffee? ☕',
-    'sponsor.btn':    'Support $5',
-
     // ERROR
     'error.title':       'Something Went Wrong',
     'error.retry':       'Try Again',

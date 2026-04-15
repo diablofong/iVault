@@ -292,9 +292,6 @@ function bindHandlers() {
     document.getElementById('btn-open-folder')?.addEventListener('click', () => {
         if (backupResult?.backupPath) OpenFolder(backupResult.backupPath);
     });
-    document.getElementById('btn-sponsor')?.addEventListener('click', () => {
-        OpenURL('https://buymeacoffee.com/ivault');
-    });
     document.getElementById('btn-backup-again')?.addEventListener('click', () => setState('idle'));
 
     // 失敗清單展開/收合
