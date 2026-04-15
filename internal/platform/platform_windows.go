@@ -36,6 +36,14 @@ const (
 	DRIVE_RAMDISK   = 6
 )
 
+// hiddenCmd 建立一個帶有 CREATE_NO_WINDOW 旗標的 exec.Cmd。
+// 從 Wails GUI 程序啟動 console 程式時，若不設此旗標會閃出黑色視窗。
+func hiddenCmd(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd
+}
+
 func detectPlatformSpecific(info *Info) {
 	info.AppleDevicesInstalled = checkAppleDevices()
 	info.HeicSupported = checkHeicSupported()
@@ -57,14 +65,14 @@ func checkAppleDevices() bool {
 	// 方法 2：MS Store Apple Devices — 查 AppxPackage
 	// USBAAPL64 kernel driver 解安裝後會殘留為 STOPPED，不能作為判斷依據
 	// PackageFamilyName 有值才代表真正安裝中
-	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+	out, err := hiddenCmd("powershell", "-NoProfile", "-Command",
 		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName").Output()
 	if err == nil && strings.TrimSpace(string(out)) != "" {
 		return true
 	}
 
 	// 方法 3：iTunes legacy service（sc.exe 避免 PowerShell 別名問題）
-	out2, err2 := exec.Command("sc.exe", "query", "Apple Mobile Device Service").Output()
+	out2, err2 := hiddenCmd("sc.exe", "query", "Apple Mobile Device Service").Output()
 	if err2 == nil && strings.Contains(string(out2), "SERVICE_NAME") {
 		return true
 	}
@@ -74,12 +82,12 @@ func checkAppleDevices() bool {
 
 func checkHeicSupported() bool {
 	// 檢查是否有 HEIC 副檔名關聯（Windows 11 通常有）
-	out, err := exec.Command("reg", "query", `HKEY_CLASSES_ROOT\.heic`).Output()
+	out, err := hiddenCmd("reg", "query", `HKEY_CLASSES_ROOT\.heic`).Output()
 	return err == nil && len(out) > 0
 }
 
 func detectDarkModeWindows() bool {
-	out, err := exec.Command("reg", "query",
+	out, err := hiddenCmd("reg", "query",
 		`HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize`,
 		"/v", "AppsUseLightTheme").Output()
 	if err != nil {
@@ -140,12 +148,12 @@ func GetDiskInfo(path string) DiskInfo {
 
 // OpenFolder 用 Explorer 開啟資料夾
 func OpenFolder(path string) error {
-	return exec.Command("explorer", path).Start()
+	return hiddenCmd("explorer", path).Start()
 }
 
 // OpenURL 用系統瀏覽器開啟 URL
 func OpenURL(url string) error {
-	return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	return hiddenCmd("rundll32", "url.dll,FileProtocolHandler", url).Start()
 }
 
 // HasWinget 檢查系統是否有 winget CLI
@@ -166,13 +174,13 @@ func InstallAppleDevicesViaWinget() error {
 
 	// Step 1：全新安裝
 	installArgs := append([]string{"install", id}, commonArgs...)
-	if err := exec.Command("winget", installArgs...).Run(); err == nil {
+	if err := hiddenCmd("winget", installArgs...).Run(); err == nil {
 		return nil
 	}
 
 	// Step 2：install 失敗（可能已安裝舊版）→ 嘗試升級
 	upgradeArgs := append([]string{"upgrade", id}, commonArgs...)
-	return exec.Command("winget", upgradeArgs...).Run()
+	return hiddenCmd("winget", upgradeArgs...).Run()
 	// 若 upgrade 也失敗（已是最新版），pollDriverInstall() 仍會透過路徑偵測判斷
 }
 
@@ -184,7 +192,7 @@ func RecheckAppleDevices() bool {
 // DetectInstallStage 偵測 Apple Devices 安裝進度階段
 // 回傳："downloading" | "installing" | "starting"
 func DetectInstallStage() string {
-	out, err := exec.Command("sc", "query", "Apple Mobile Device Service").Output()
+	out, err := hiddenCmd("sc", "query", "Apple Mobile Device Service").Output()
 	if err != nil {
 		// 服務尚未寫入 = 下載中
 		return "downloading"
@@ -203,7 +211,7 @@ func DetectInstallStage() string {
 // WMIDetectIPhone 透過 WMI 偵測已連接的 iPhone（不需要 Apple Devices 驅動）
 // 回傳裝置名稱（如 "Apple iPhone"），未偵測到則回傳空字串
 func WMIDetectIPhone() string {
-	out, err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
+	out, err := hiddenCmd("powershell", "-NoProfile", "-NonInteractive", "-Command",
 		"(Get-WmiObject Win32_PnPEntity | Where-Object { $_.Name -like '*iPhone*' } | Select-Object -First 1 -ExpandProperty Name)").Output()
 	if err != nil {
 		return ""
@@ -248,7 +256,7 @@ func EnsureAMDSRunning() error {
 
 	// 用 explorer.exe 走 UWP activation path
 	// 不能直接 exec AppleMobileDeviceLauncher.exe（WindowsApps ACL 會拒絕）
-	if err := exec.Command("explorer.exe", "shell:AppsFolder\\"+aumid).Start(); err != nil {
+	if err := hiddenCmd("explorer.exe", "shell:AppsFolder\\"+aumid).Start(); err != nil {
 		return fmt.Errorf("launch Apple Devices: %w", err)
 	}
 
@@ -270,7 +278,7 @@ func EnsureAMDSRunning() error {
 // 不寫死 package family name，避免 Apple 改版後失效。
 // 格式：{PackageFamilyName}!App，例如 AppleInc.AppleDevices_nzyj5cx40ttqa!App
 func findAppleDevicesAUMID() (string, error) {
-	out, err := exec.Command("powershell", "-NoProfile", "-Command",
+	out, err := hiddenCmd("powershell", "-NoProfile", "-Command",
 		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName").Output()
 	if err != nil {
 		return "", err
@@ -290,7 +298,7 @@ func findAppleDevicesAUMID() (string, error) {
 // 延遲 1 秒執行，避免 UI 還在初始化時就被 kill。
 func killAppleDevicesUI() {
 	time.Sleep(1 * time.Second)
-	_ = exec.Command("taskkill", "/F", "/IM", "AppleDevices.exe").Run()
+	_ = hiddenCmd("taskkill", "/F", "/IM", "AppleDevices.exe").Run()
 }
 
 func driveExists(root string) bool {

@@ -353,10 +353,7 @@ function bindHandlers() {
     document.getElementById('btn-open-folder')?.addEventListener('click', () => {
         if (backupResult?.backupPath) OpenFolder(backupResult.backupPath);
     });
-    document.getElementById('btn-sponsor')?.addEventListener('click', () => {
-        OpenURL('https://buymeacoffee.com/ivault');
-    });
-    document.getElementById('btn-backup-again')?.addEventListener('click', () => {
+document.getElementById('btn-backup-again')?.addEventListener('click', () => {
         // iPhone 仍插著 → 直接回 READY，不需要重新連接
         if (currentDevice?.udid) {
             setState('ready', currentDevice);
