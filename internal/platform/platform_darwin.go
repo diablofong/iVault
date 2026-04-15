@@ -85,7 +85,7 @@ func getDiskSpace(path string) DiskInfo {
 	if err := syscall.Statfs(path, &stat); err != nil {
 		return disk
 	}
-	disk.TotalSpace = int64(stat.Blocks) * stat.Bsize
-	disk.FreeSpace = int64(stat.Bavail) * stat.Bsize
+	disk.TotalSpace = int64(stat.Blocks) * int64(stat.Bsize)
+	disk.FreeSpace = int64(stat.Bavail) * int64(stat.Bsize)
 	return disk
 }
