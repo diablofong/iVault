@@ -2,9 +2,11 @@ name: Release
 
 on:
   push:
+    branches:
+      - v1.0.0              # 推送到此分支時自動觸發建置（測試用）
     tags:
       - 'v*'
-  workflow_dispatch:        # 手動觸發，用於測試建置流程
+  workflow_dispatch:        # 手動觸發
 
 jobs:
   # ── Windows ─────────────────────────────────────────────
