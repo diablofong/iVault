@@ -20,22 +20,6 @@ export namespace backup {
 	        this.organizeByDate = source["organizeByDate"];
 	    }
 	}
-	export class CopyResult {
-	    remotePath: string;
-	    localPath: string;
-	    bytesCopied: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new CopyResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.remotePath = source["remotePath"];
-	        this.localPath = source["localPath"];
-	        this.bytesCopied = source["bytesCopied"];
-	    }
-	}
 
 }
 
@@ -164,24 +148,6 @@ export namespace device {
 	        this.model = source["model"];
 	        this.iosVersion = source["iosVersion"];
 	        this.trusted = source["trusted"];
-	    }
-	}
-	export class PhotoFile {
-	    remotePath: string;
-	    fileName: string;
-	    size: number;
-	    modTime: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new PhotoFile(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.remotePath = source["remotePath"];
-	        this.fileName = source["fileName"];
-	        this.size = source["size"];
-	        this.modTime = source["modTime"];
 	    }
 	}
 

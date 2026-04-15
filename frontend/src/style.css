@@ -860,25 +860,6 @@ body.os-windows .failed-list { border-radius: 5px; }
 .failed-name   { font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .failed-reason { font-size: 12px; color: var(--danger); opacity: 0.75; }
 
-/* ── 贊助區塊 ───────────────────────────────────────────── */
-.sponsor { text-align: center; }
-
-.sponsor-divider { height: 1px; background: var(--border); margin-bottom: 12px; }
-
-.sponsor-text { font-size: 13px; color: var(--text-tertiary); margin-bottom: 8px; line-height: 1.5; }
-
-.btn-sponsor {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 5px 16px;
-    font-size: 13px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: background 150ms, color 150ms;
-}
-
-.btn-sponsor:hover { background: var(--bg-surface-2); color: var(--text-primary); }
 
 /* ── HEIC 提示 ──────────────────────────────────────────── */
 .heic-hint {

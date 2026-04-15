@@ -82,10 +82,6 @@ export default {
     'done.heic_hint':        '你備份的照片含有 .heic 格式，Windows 需安裝擴充才能預覽',
     'done.heic_install':     '一鍵安裝（免費）',
 
-    // SPONSOR
-    'sponsor.text': 'iVault 永遠免費開源。如果它幫到你，請我喝杯咖啡 →',
-    'sponsor.btn':  '$5 支持開發',
-
     // ERROR — 各錯誤碼對應人類可讀訊息
     'error.title':               '發生錯誤',
     'error.retry':               '重試',
