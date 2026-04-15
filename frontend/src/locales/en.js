@@ -52,7 +52,9 @@ export default {
     'ready.start':       'Start Backup',
     'ready.last_backup': 'Last backup',
     'ready.no_backup':   'Never backed up',
-    'ready.files_count': 'photos',
+    'ready.files_count':    'photos',
+    'ready.disk_free':      'available',
+    'ready.estimate_label': 'Estimated',
 
     // BACKING_UP
     'backup.title':    'Backing Up',
