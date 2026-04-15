@@ -79,6 +79,15 @@ func InstallAppleDevicesViaWinget() error { return nil }
 // RecheckAppleDevices macOS 永遠回傳 true
 func RecheckAppleDevices() bool { return true }
 
+// WMIDetectIPhone macOS 不需要（Windows 專用）
+func WMIDetectIPhone() string { return "" }
+
+// IsAMDSReady macOS 不需要（Windows 專用）
+func IsAMDSReady() bool { return true }
+
+// EnsureAMDSRunning macOS 不需要（Windows 專用）
+func EnsureAMDSRunning() error { return nil }
+
 func getDiskSpace(path string) DiskInfo {
 	disk := DiskInfo{Path: path}
 	var stat syscall.Statfs_t
