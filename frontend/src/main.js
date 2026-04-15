@@ -408,7 +408,10 @@ async function onEnterIdle() {
         const infoEl = document.getElementById('idle-interrupted-info');
         if (infoEl) {
             if (done > 0 && total > 0) {
-                infoEl.textContent = `已備份 ${fmt(done)} / ${fmt(total)} · ${t('idle.interrupted.progress')}`;
+                infoEl.textContent = (getLang() === 'zh-TW'
+                    ? `已備份 ${fmt(done)} / ${fmt(total)}`
+                    : `Backed up ${fmt(done)} of ${fmt(total)}`)
+                    + ` · ${t('idle.interrupted.progress')}`;
             } else {
                 infoEl.textContent = t('idle.interrupted.progress');
             }
@@ -715,7 +718,7 @@ function onEnterError(err) {
     // 其他錯誤碼：查 i18n 字典
     if (titleEl) titleEl.textContent = t('error.title');
     const localizedMsg = t(`error.${code}`);
-    setEl('error-message', localizedMsg !== `error.${code}` ? localizedMsg : (err.message || '發生未預期的錯誤，請重試。'));
+    setEl('error-message', localizedMsg !== `error.${code}` ? localizedMsg : (err.message || t('error.unknown_fallback')));
 
     if (retryBtn) retryBtn.style.display = err.recoverable !== false ? '' : 'none';
 
