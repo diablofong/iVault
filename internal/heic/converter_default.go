@@ -32,10 +32,7 @@ func (c *Converter) ConvertAll(ctx context.Context, backupPath string) (*Convert
 	var converted, failed, done atomic.Int64
 	var wg sync.WaitGroup
 
-	workers := heicWorkerCount
-	if total < workers {
-		workers = total
-	}
+	workers := min(heicWorkerCount, total)
 	for range workers {
 		wg.Add(1)
 		go func() {
@@ -74,6 +71,7 @@ func (c *Converter) ConvertAll(ctx context.Context, backupPath string) (*Convert
 }
 
 // convertOne 單一 HEIC → JPEG 轉檔（使用 Go image pipeline）
+// 先寫入暫存檔，成功後再 rename，避免轉檔失敗留下 0 bytes 殘留。
 func (c *Converter) convertOne(heicPath, jpgPath string) error {
 	img, exifData, err := decodeHEIC(heicPath)
 	if err != nil {
@@ -84,11 +82,25 @@ func (c *Converter) convertOne(heicPath, jpgPath string) error {
 		img = applyExifOrientation(img, exifData)
 	}
 
-	out, err := os.Create(jpgPath)
+	tmp, err := os.CreateTemp("", "ivault_heic_*.jpg")
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	tmpPath := tmp.Name()
 
-	return jpeg.Encode(out, img, &jpeg.Options{Quality: c.quality})
+	if err := jpeg.Encode(tmp, img, &jpeg.Options{Quality: c.quality}); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	if err := os.Rename(tmpPath, jpgPath); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }

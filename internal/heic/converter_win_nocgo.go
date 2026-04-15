@@ -55,7 +55,8 @@ func (c *Converter) ConvertAll(ctx context.Context, backupPath string) (*Convert
 func (c *Converter) runPSWorker(ctx context.Context, files []string, total int, converted, failed, done *atomic.Int64) {
 	var validFiles []string
 	var sb strings.Builder
-	sb.WriteString("[void][System.Reflection.Assembly]::LoadWithPartialName('PresentationCore')\n")
+	// Add-Type 比 LoadWithPartialName 更可靠（後者在部分 Windows 11 環境失效）
+	sb.WriteString("Add-Type -AssemblyName PresentationCore\n")
 	sb.WriteString("$q = 92\n")
 
 	for _, src := range files {
@@ -69,6 +70,7 @@ func (c *Converter) runPSWorker(ctx context.Context, files []string, total int, 
 		dstEsc := strings.ReplaceAll(dst, "'", "''")
 		validFiles = append(validFiles, src)
 		fmt.Fprintf(&sb, `
+$s = $null; $fs = $null
 try {
     $s = [System.IO.File]::OpenRead('%s')
     $bi = New-Object System.Windows.Media.Imaging.BitmapImage
@@ -77,18 +79,21 @@ try {
     $bi.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
     $bi.EndInit()
     $bi.Freeze()
-    $s.Close()
+    $s.Close(); $s = $null
     $enc = New-Object System.Windows.Media.Imaging.JpegBitmapEncoder
     $enc.QualityLevel = $q
     $enc.Frames.Add([System.Windows.Media.Imaging.BitmapFrame]::Create($bi))
     $fs = [System.IO.File]::OpenWrite('%s')
     $enc.Save($fs)
-    $fs.Close()
+    $fs.Close(); $fs = $null
     Write-Output 'OK'
 } catch {
+    if ($s)  { try { $s.Close()  } catch {} }
+    if ($fs) { try { $fs.Close() } catch {} }
+    Remove-Item '%s' -ErrorAction SilentlyContinue
     Write-Output 'FAIL'
 }
-`, srcEsc, dstEsc)
+`, srcEsc, dstEsc, dstEsc)
 	}
 
 	if len(validFiles) == 0 {

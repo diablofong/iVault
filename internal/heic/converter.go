@@ -67,11 +67,13 @@ func scanHeicFiles(root string) []string {
 	return files
 }
 
-// filterAlreadyConverted 過濾掉已有 JPEG 副本的檔案
+// filterAlreadyConverted 過濾掉已有有效 JPEG 副本的檔案。
+// 若 .jpg 存在但大小為 0（上次轉檔失敗的殘留），視為未轉換、納入重試。
 func filterAlreadyConverted(heicFiles []string) []string {
 	var result []string
 	for _, f := range heicFiles {
-		if _, err := os.Stat(jpegPath(f)); os.IsNotExist(err) {
+		info, err := os.Stat(jpegPath(f))
+		if os.IsNotExist(err) || (err == nil && info.Size() == 0) {
 			result = append(result, f)
 		}
 	}
