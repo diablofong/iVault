@@ -41,6 +41,7 @@ jobs:
         run: wails build -platform windows/amd64
         env:
           CGO_ENABLED: '1'
+          CGO_LDFLAGS: '-static -lpthread'
 
       - name: Package
         shell: pwsh
