@@ -147,8 +147,10 @@ func GetDiskInfo(path string) DiskInfo {
 }
 
 // OpenFolder 用 Explorer 開啟資料夾
+// 不用 hiddenCmd：explorer.exe 是 GUI 程式，HideWindow 旗標會讓 Explorer
+// 視窗以 SW_HIDE 建立，導致資料夾視窗開啟後看不見。
 func OpenFolder(path string) error {
-	return hiddenCmd("explorer", path).Start()
+	return exec.Command("explorer", path).Start()
 }
 
 // OpenURL 用系統瀏覽器開啟 URL
