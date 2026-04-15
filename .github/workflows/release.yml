@@ -43,14 +43,10 @@ jobs:
           CGO_ENABLED: '1'
           CGO_LDFLAGS: '-static -lpthread'
 
-      - name: Package
-        shell: pwsh
-        run: Compress-Archive -Path build/bin/iVault.exe -DestinationPath iVault-windows-amd64.zip
-
       - uses: actions/upload-artifact@v4
         with:
           name: windows-amd64
-          path: iVault-windows-amd64.zip
+          path: build/bin/iVault.exe
           retention-days: 7
 
   # ── macOS ────────────────────────────────────────────────
@@ -76,15 +72,10 @@ jobs:
       - name: Build
         run: wails build -platform darwin/universal
 
-      - name: Package
-        run: |
-          cd build/bin
-          zip -r ../../iVault-macos-universal.zip iVault.app
-
       - uses: actions/upload-artifact@v4
         with:
           name: macos-universal
-          path: iVault-macos-universal.zip
+          path: build/bin/iVault.app
           retention-days: 7
 
   # ── GitHub Release（僅在 tag push 時執行）───────────────
@@ -98,6 +89,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
+
+      - name: Package
+        run: |
+          zip iVault-windows-amd64.zip iVault.exe
+          zip -r iVault-macos-universal.zip iVault.app
 
       - name: Generate SHA256
         run: sha256sum iVault-windows-amd64.zip iVault-macos-universal.zip > SHA256SUMS.txt
