@@ -98,20 +98,31 @@ export function setLang(lang) {
 
 export function getLang() { return currentLang; }
 
+// setTextWithBreaks 以 DOM API 將多行字串寫入元素，保留換行為 <br>。
+// 避免用 innerHTML — 縱深防禦：若未來翻譯值來自遠端或動態來源，不會被當成 HTML 解析。
+function setTextWithBreaks(el, val) {
+    el.replaceChildren();
+    const parts = val.split('\n');
+    parts.forEach((part, i) => {
+        if (part) el.appendChild(document.createTextNode(part));
+        if (i < parts.length - 1) el.appendChild(document.createElement('br'));
+    });
+}
+
 export function renderAll() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         const val = t(key);
         if (!val) return;
         if (val.includes('\n')) {
-            el.innerHTML = val.replace(/\n/g, '<br>');
+            setTextWithBreaks(el, val);
         } else {
             el.textContent = val;
         }
     });
 
     const heroTitle = document.getElementById('hero-title');
-    if (heroTitle) heroTitle.innerHTML = t('hero.title').replace(/\n/g, '<br>');
+    if (heroTitle) setTextWithBreaks(heroTitle, t('hero.title'));
 
     document.querySelectorAll('[data-lang]').forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-lang') === currentLang);
