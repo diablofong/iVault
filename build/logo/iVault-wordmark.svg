@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  iVault wordmark lockup.
+  Icon: original geometric composition (rect + V path + circle).
+  Wordmark font: Inter (SIL Open Font License 1.1, https://rsms.me/inter/).
+  Fallback: system sans-serif. No proprietary fonts referenced.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 384" role="img" aria-label="iVault">
+  <title>iVault</title>
+  <desc>Horizontal lockup: icon + wordmark. Uses Inter (SIL OFL) with system fallback.</desc>
+
+  <defs>
+    <radialGradient id="iv-mark-bg" cx="50%" cy="36%" r="85%">
+      <stop offset="0%"  stop-color="#272727"/>
+      <stop offset="55%" stop-color="#0c0c0c"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+  </defs>
+
+  <g transform="translate(0,0)">
+    <rect width="384" height="384" rx="86" ry="86" fill="url(#iv-mark-bg)"/>
+    <g transform="scale(0.375)">
+      <g fill="none" stroke="#ffffff" stroke-width="60"
+         stroke-linecap="round" stroke-linejoin="round">
+        <path d="M 288 288 L 512 650 L 736 288"/>
+      </g>
+      <circle cx="512" cy="776" r="48" fill="#ffffff"/>
+    </g>
+  </g>
+
+  <g transform="translate(448, 76)" fill="#0a0a0a"
+     font-family="Inter, 'Inter Variable', system-ui, sans-serif"
+     font-weight="600" font-size="232" letter-spacing="-8">
+    <text x="0" y="200">iVault</text>
+  </g>
+</svg>

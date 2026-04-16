@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- CSP：無外部 JS/CSS/CDN，採嚴格 same-origin；img 另允 data: 供 inline SVG/base64 使用 -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+
+    <title>iVault — iPhone Photo Backup</title>
+
+    <!-- SEO -->
+    <meta name="description" content="Back up your iPhone photos over USB — fast, free, and open source. No iCloud. No iTunes sync.">
+
+    <!-- Open Graph -->
+    <meta property="og:type"        content="website">
+    <meta property="og:url"         content="https://diablofong.github.io/iVault/">
+    <meta property="og:title"       content="iVault — iPhone Photo Backup">
+    <meta property="og:description" content="Back up your iPhone photos over USB — fast, free, and open source. No iCloud. No iTunes sync.">
+    <meta property="og:image"       content="https://diablofong.github.io/iVault/screenshots/ready-en.png">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card"        content="summary_large_image">
+    <meta name="twitter:title"       content="iVault — iPhone Photo Backup">
+    <meta name="twitter:description" content="Back up your iPhone photos over USB — fast, free, and open source.">
+    <meta name="twitter:image"       content="https://diablofong.github.io/iVault/screenshots/ready-en.png">
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Navbar -->
+<nav>
+    <div class="nav-inner">
+        <a class="nav-logo" href="#">iVault</a>
+        <div class="nav-right">
+            <div class="lang-toggle">
+                <button data-lang="en">EN</button>
+                <button data-lang="zh-TW">中文</button>
+            </div>
+            <a class="nav-download-btn" href="#download" data-i18n="nav.download">Download</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section id="hero">
+    <div class="container">
+        <div class="hero-inner">
+            <!-- Left: text -->
+            <div class="hero-text">
+                <div class="trust-badges">
+                    <span data-i18n="trust.platform">Windows 11 / 10</span>
+                    <span class="dot">·</span>
+                    <span data-i18n="trust.free">Free</span>
+                    <span class="dot">·</span>
+                    <span data-i18n="trust.opensource">Open Source</span>
+                </div>
+                <h1 id="hero-title"></h1>
+                <p class="hero-subtitle" data-i18n="hero.subtitle"></p>
+                <p class="hero-tagline" data-i18n="hero.tagline">Free, open source. No iCloud. No iTunes sync.</p>
+                <div class="hero-cta-wrap">
+                    <a class="btn-primary btn-accent" href="#download" data-i18n="hero.cta">Free Download</a>
+                    <p class="cta-note" data-i18n="hero.cta.note">No account · No subscription · Original quality</p>
+                </div>
+            </div>
+            <!-- Right: product mockup -->
+            <div class="hero-visual">
+                <div class="app-frame">
+                    <div class="app-frame-bar">
+                        <span class="dot-red"></span>
+                        <span class="dot-yellow"></span>
+                        <span class="dot-green"></span>
+                    </div>
+                    <picture>
+                        <source srcset="screenshots/ready-en.webp" type="image/webp" id="hero-ss-src">
+                        <img src="screenshots/ready-en.png" alt="iVault — device ready" id="hero-ss" fetchpriority="high">
+                    </picture>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section id="how">
+    <div class="container">
+        <p class="section-label" data-i18n="how.title">How it works</p>
+        <div class="steps-grid">
+            <div class="step">
+                <div class="step-num">1</div>
+                <h3 data-i18n="step.1.title">Connect your iPhone</h3>
+                <p data-i18n="step.1.desc">Plug in via USB — no Wi-Fi, no account, no setup required.</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <h3 data-i18n="step.2.title">Tap Trust on your iPhone</h3>
+                <p data-i18n="step.2.desc">A one-time prompt. Your computer stays trusted forever.</p>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <h3 data-i18n="step.3.title">Backup starts</h3>
+                <p data-i18n="step.3.desc">Photos transfer at full USB speed, sorted into monthly folders automatically.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+    <div class="container">
+        <p class="section-label" data-i18n="features.title">Simple by design</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                </div>
+                <h3 data-i18n="feature.1.title">USB direct transfer</h3>
+                <p data-i18n="feature.1.desc"></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                </div>
+                <h3 data-i18n="feature.2.title">Auto monthly folders</h3>
+                <p data-i18n="feature.2.desc"></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 4 1 10 7 10"/>
+                        <path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+                    </svg>
+                </div>
+                <h3 data-i18n="feature.3.title">Resume anytime</h3>
+                <p data-i18n="feature.3.desc"></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Screenshots -->
+<section id="screenshots" class="reveal">
+    <div class="container">
+        <p class="section-label" data-i18n="screenshots.title">See it in action</p>
+        <div class="screenshots-grid">
+            <div class="screenshot-item">
+                <div class="app-frame app-frame-sm">
+                    <div class="app-frame-bar">
+                        <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
+                    </div>
+                    <picture>
+                        <source srcset="screenshots/idle-first-en.webp" type="image/webp" id="ss-1-src">
+                        <img src="screenshots/idle-first-en.png" alt="" id="ss-1-img" loading="lazy">
+                    </picture>
+                </div>
+                <span data-i18n="screenshot.1">First launch</span>
+            </div>
+            <div class="screenshot-item">
+                <div class="app-frame app-frame-sm">
+                    <div class="app-frame-bar">
+                        <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
+                    </div>
+                    <picture>
+                        <source srcset="screenshots/ready-en.webp" type="image/webp" id="ss-2-src">
+                        <img src="screenshots/ready-en.png" alt="" id="ss-2-img" loading="lazy">
+                    </picture>
+                </div>
+                <span data-i18n="screenshot.2">Device ready</span>
+            </div>
+            <div class="screenshot-item">
+                <div class="app-frame app-frame-sm">
+                    <div class="app-frame-bar">
+                        <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
+                    </div>
+                    <picture>
+                        <source srcset="screenshots/backing-up-en.webp" type="image/webp" id="ss-3-src">
+                        <img src="screenshots/backing-up-en.png" alt="" id="ss-3-img" loading="lazy">
+                    </picture>
+                </div>
+                <span data-i18n="screenshot.3">Backing up</span>
+            </div>
+            <div class="screenshot-item">
+                <div class="app-frame app-frame-sm">
+                    <div class="app-frame-bar">
+                        <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
+                    </div>
+                    <picture>
+                        <source srcset="screenshots/idle-returning-en.webp" type="image/webp" id="ss-4-src">
+                        <img src="screenshots/idle-returning-en.png" alt="" id="ss-4-img" loading="lazy">
+                    </picture>
+                </div>
+                <span data-i18n="screenshot.4">All done</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Compare -->
+<section id="compare">
+    <div class="container">
+        <p class="section-label" data-i18n="compare.title">How iVault compares</p>
+        <div class="compare-table-wrap">
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th data-i18n="compare.feature">Feature</th>
+                        <th class="col-ivault" data-i18n="compare.ivault">iVault</th>
+                        <th data-i18n="compare.msphotos">Microsoft Photos</th>
+                        <th data-i18n="compare.icloud">iCloud</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td data-i18n="compare.price">Price</td>
+                        <td class="col-ivault" data-i18n="compare.price.ivault">Free</td>
+                        <td data-i18n="compare.price.msphotos">Free</td>
+                        <td data-i18n="compare.price.icloud">Free (5 GB) / Subscription</td>
+                    </tr>
+                    <tr>
+                        <td data-i18n="compare.transfer">Transfer method</td>
+                        <td class="col-ivault" data-i18n="compare.transfer.ivault">USB (AFC direct)</td>
+                        <td data-i18n="compare.transfer.msphotos">USB (PTP/MTP — often fails)</td>
+                        <td data-i18n="compare.transfer.icloud">iCloud sync</td>
+                    </tr>
+                    <tr>
+                        <td data-i18n="compare.storage">Storage location</td>
+                        <td class="col-ivault" data-i18n="compare.storage.ivault">Your PC</td>
+                        <td data-i18n="compare.storage.msphotos">Your PC</td>
+                        <td data-i18n="compare.storage.icloud">iCloud (5 GB free)</td>
+                    </tr>
+                    <tr>
+                        <td data-i18n="compare.opensource">Open source</td>
+                        <td class="col-ivault compare-yes" data-i18n="compare.yes">✓</td>
+                        <td class="compare-no" data-i18n="compare.no">—</td>
+                        <td class="compare-no" data-i18n="compare.no">—</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Download -->
+<section id="download">
+    <div class="container">
+        <p class="download-title" data-i18n="download.title">Download iVault</p>
+        <p class="download-free" data-i18n="download.free">Free &amp; open source — always.</p>
+        <div class="download-platforms download-platforms-single">
+            <div class="download-card">
+                <div class="platform-icon">
+                    <svg width="32" height="32" viewBox="0 0 88 88" fill="currentColor">
+                        <path d="M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.028 34.453L.028 75.48.026 45.7zm4.326-39.025L87.314 0v41.527l-47.318.376zm47.329 39.349l-.011 41.34-47.318-6.678-.066-34.739z"/>
+                    </svg>
+                </div>
+                <a class="btn-primary btn-accent" href="https://github.com/diablofong/iVault/releases/latest" target="_blank" rel="noopener" data-i18n="download.win">Download for Windows</a>
+                <p class="download-note" data-i18n="download.win.note"></p>
+            </div>
+        </div>
+        <a class="download-source" href="https://github.com/diablofong/iVault" target="_blank" rel="noopener">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            <span data-i18n="download.source">View source on GitHub</span>
+        </a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="footer-inner">
+        <span class="footer-tagline" data-i18n="footer.tagline">Free iPhone photo backup for Windows. Open source.</span>
+        <span class="footer-links">
+            <a href="privacy.html" data-i18n="footer.privacy">Privacy</a>
+            <span class="sep">·</span>
+            <a href="https://github.com/diablofong/iVault/blob/main/LICENSE" target="_blank" rel="noopener" data-i18n="footer.license">Apache 2.0</a>
+            <span class="sep">·</span>
+            <a href="https://github.com/diablofong/iVault" target="_blank" rel="noopener" data-i18n="footer.github">GitHub</a>
+        </span>
+    </div>
+</footer>
+
+<script type="module" src="main.js"></script>
+
+</body>
+</html>
