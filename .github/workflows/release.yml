@@ -49,38 +49,9 @@ jobs:
           path: build/bin/iVault.exe
           retention-days: 7
 
-  # ── macOS ────────────────────────────────────────────────
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-          cache: true
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Wails
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
-
-      - name: Build
-        run: wails build -platform darwin/universal
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-universal
-          path: build/bin/iVault.app
-          retention-days: 7
-
   # ── GitHub Release（僅在 tag push 時執行）───────────────
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
@@ -91,16 +62,13 @@ jobs:
           merge-multiple: true
 
       - name: Package
-        run: |
-          zip iVault-windows-amd64.zip iVault.exe
-          zip -r iVault-macos-universal.zip iVault.app
+        run: zip iVault-windows-amd64.zip iVault.exe
 
       - name: Generate SHA256
-        run: sha256sum iVault-windows-amd64.zip iVault-macos-universal.zip > SHA256SUMS.txt
+        run: sha256sum iVault-windows-amd64.zip > SHA256SUMS.txt
 
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             iVault-windows-amd64.zip
-            iVault-macos-universal.zip
             SHA256SUMS.txt
