@@ -6,6 +6,7 @@ import (
 	"context"
 	"image/jpeg"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 )
@@ -82,7 +83,7 @@ func (c *Converter) convertOne(heicPath, jpgPath string) error {
 		img = applyExifOrientation(img, exifData)
 	}
 
-	tmp, err := os.CreateTemp("", "ivault_heic_*.jpg")
+	tmp, err := os.CreateTemp(filepath.Dir(jpgPath), ".ivault_heic_*.jpg")
 	if err != nil {
 		return err
 	}

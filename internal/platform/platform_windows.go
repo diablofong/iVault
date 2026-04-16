@@ -3,6 +3,7 @@
 package platform
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -14,6 +15,21 @@ import (
 	"time"
 	"unsafe"
 )
+
+// hiddenCmdTimeout 是所有偵測類 hidden cmd 的預設 timeout。
+// watchDevices 每 3 秒輪詢 checkAppleDevices，任何 hidden cmd 卡住
+// （PowerShell 首次啟動、WMI 服務異常、reg 鎖住等）都會凍結 UI。
+const hiddenCmdTimeout = 8 * time.Second
+
+// runHiddenOutput 執行 hidden cmd 並取得 stdout，帶 timeout 保護。
+// timeout 命中會 kill process、回 context.DeadlineExceeded。
+func runHiddenOutput(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Output()
+}
 
 // aumidRegex 限制 Windows AppUserModelId 只能含安全字元，防止 Get-AppxPackage 輸出
 // 被竄改後導致 shell:AppsFolder\{AUMID} 拼接出意外的路徑或指令。
@@ -65,14 +81,14 @@ func checkAppleDevices() bool {
 	// 方法 2：MS Store Apple Devices — 查 AppxPackage
 	// USBAAPL64 kernel driver 解安裝後會殘留為 STOPPED，不能作為判斷依據
 	// PackageFamilyName 有值才代表真正安裝中
-	out, err := hiddenCmd("powershell", "-NoProfile", "-Command",
-		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName").Output()
+	out, err := runHiddenOutput(hiddenCmdTimeout, "powershell", "-NoProfile", "-Command",
+		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName")
 	if err == nil && strings.TrimSpace(string(out)) != "" {
 		return true
 	}
 
 	// 方法 3：iTunes legacy service（sc.exe 避免 PowerShell 別名問題）
-	out2, err2 := hiddenCmd("sc.exe", "query", "Apple Mobile Device Service").Output()
+	out2, err2 := runHiddenOutput(hiddenCmdTimeout, "sc.exe", "query", "Apple Mobile Device Service")
 	if err2 == nil && strings.Contains(string(out2), "SERVICE_NAME") {
 		return true
 	}
@@ -82,14 +98,14 @@ func checkAppleDevices() bool {
 
 func checkHeicSupported() bool {
 	// 檢查是否有 HEIC 副檔名關聯（Windows 11 通常有）
-	out, err := hiddenCmd("reg", "query", `HKEY_CLASSES_ROOT\.heic`).Output()
+	out, err := runHiddenOutput(hiddenCmdTimeout, "reg", "query", `HKEY_CLASSES_ROOT\.heic`)
 	return err == nil && len(out) > 0
 }
 
 func detectDarkModeWindows() bool {
-	out, err := hiddenCmd("reg", "query",
+	out, err := runHiddenOutput(hiddenCmdTimeout, "reg", "query",
 		`HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize`,
-		"/v", "AppsUseLightTheme").Output()
+		"/v", "AppsUseLightTheme")
 	if err != nil {
 		return false
 	}
@@ -194,7 +210,7 @@ func RecheckAppleDevices() bool {
 // DetectInstallStage 偵測 Apple Devices 安裝進度階段
 // 回傳："downloading" | "installing" | "starting"
 func DetectInstallStage() string {
-	out, err := hiddenCmd("sc", "query", "Apple Mobile Device Service").Output()
+	out, err := runHiddenOutput(hiddenCmdTimeout, "sc", "query", "Apple Mobile Device Service")
 	if err != nil {
 		// 服務尚未寫入 = 下載中
 		return "downloading"
@@ -213,8 +229,8 @@ func DetectInstallStage() string {
 // WMIDetectIPhone 透過 WMI 偵測已連接的 iPhone（不需要 Apple Devices 驅動）
 // 回傳裝置名稱（如 "Apple iPhone"），未偵測到則回傳空字串
 func WMIDetectIPhone() string {
-	out, err := hiddenCmd("powershell", "-NoProfile", "-NonInteractive", "-Command",
-		"(Get-WmiObject Win32_PnPEntity | Where-Object { $_.Name -like '*iPhone*' } | Select-Object -First 1 -ExpandProperty Name)").Output()
+	out, err := runHiddenOutput(hiddenCmdTimeout, "powershell", "-NoProfile", "-NonInteractive", "-Command",
+		"(Get-WmiObject Win32_PnPEntity | Where-Object { $_.Name -like '*iPhone*' } | Select-Object -First 1 -ExpandProperty Name)")
 	if err != nil {
 		return ""
 	}
@@ -280,8 +296,8 @@ func EnsureAMDSRunning() error {
 // 不寫死 package family name，避免 Apple 改版後失效。
 // 格式：{PackageFamilyName}!App，例如 AppleInc.AppleDevices_nzyj5cx40ttqa!App
 func findAppleDevicesAUMID() (string, error) {
-	out, err := hiddenCmd("powershell", "-NoProfile", "-Command",
-		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName").Output()
+	out, err := runHiddenOutput(hiddenCmdTimeout, "powershell", "-NoProfile", "-Command",
+		"(Get-AppxPackage AppleInc.AppleDevices).PackageFamilyName")
 	if err != nil {
 		return "", err
 	}

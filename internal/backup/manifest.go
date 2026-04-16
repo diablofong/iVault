@@ -93,6 +93,8 @@ func (m *Manifest) Save() error {
 }
 
 // saveLocked 寫入磁碟（呼叫方須持有 m.mu）
+// atomic：先寫 .tmp 再 rename，避免 crash 時 manifest 損毀
+// （損毀會讓斷點續傳誤判「全部已是最新」而跳過真實未備份檔）。
 func (m *Manifest) saveLocked() error {
 	if err := os.MkdirAll(filepath.Dir(m.filePath), 0755); err != nil {
 		return err
@@ -102,7 +104,15 @@ func (m *Manifest) saveLocked() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(m.filePath, data, 0600)
+	tmp := m.filePath + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, m.filePath); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 // SaveInterrupted 標記中斷狀態並寫入磁碟（thread-safe）

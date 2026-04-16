@@ -138,5 +138,30 @@ func safeFileName(name string) string {
 	}
 
 	// 套用 Windows 不允許字元的替換
-	return sanitizeFilename(base)
+	cleaned := sanitizeFilename(base)
+
+	// Windows 保留裝置名（含副檔名後仍為保留字）前綴底線，避免 CreateFile 觸發裝置
+	if isWindowsReservedName(cleaned) {
+		cleaned = "_" + cleaned
+	}
+	return cleaned
+}
+
+// windowsReservedNames 為 Win32 保留裝置名；即使帶副檔名（例：CON.jpg）仍指向裝置。
+var windowsReservedNames = map[string]struct{}{
+	"CON": {}, "PRN": {}, "AUX": {}, "NUL": {},
+	"COM1": {}, "COM2": {}, "COM3": {}, "COM4": {}, "COM5": {},
+	"COM6": {}, "COM7": {}, "COM8": {}, "COM9": {},
+	"LPT1": {}, "LPT2": {}, "LPT3": {}, "LPT4": {}, "LPT5": {},
+	"LPT6": {}, "LPT7": {}, "LPT8": {}, "LPT9": {},
+}
+
+// isWindowsReservedName 判斷檔名（去掉副檔名後，大寫比對）是否為 Win32 保留字。
+func isWindowsReservedName(name string) bool {
+	stem := name
+	if ext := filepath.Ext(name); ext != "" {
+		stem = strings.TrimSuffix(name, ext)
+	}
+	_, ok := windowsReservedNames[strings.ToUpper(stem)]
+	return ok
 }
