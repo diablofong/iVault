@@ -191,7 +191,7 @@ nav {
 .trust-badges .dot { opacity: 0.35; }
 
 #hero-title {
-    font-size: clamp(28px, 3.4vw, 46px);
+    font-size: clamp(32px, 4vw, 54px);
     font-weight: 700;
     letter-spacing: -0.8px;
     line-height: 1.12;
@@ -205,14 +205,14 @@ nav {
 }
 
 .hero-subtitle {
-    font-size: 18px;
+    font-size: 20px;
     color: var(--text-secondary);
     margin-bottom: 20px;
     line-height: 1.65;
 }
 
 .hero-tagline {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-tertiary);
     margin-bottom: 36px;
     line-height: 1.6;
@@ -320,7 +320,7 @@ nav {
 
 /* ── Section label ──────────────────────────────────────────── */
 .section-label {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.8px;
@@ -363,14 +363,14 @@ nav {
 }
 
 .step h3 {
-    font-size: 17px;
+    font-size: 19px;
     font-weight: 600;
     letter-spacing: -0.2px;
     margin-bottom: 8px;
 }
 
 .step p {
-    font-size: 16px;
+    font-size: 17px;
     color: var(--text-secondary);
     line-height: 1.65;
 }
@@ -424,14 +424,14 @@ nav {
 }
 
 .feature-card h3 {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 600;
     letter-spacing: -0.2px;
     margin-bottom: 7px;
 }
 
 .feature-card p {
-    font-size: 15px;
+    font-size: 16px;
     color: var(--text-secondary);
     line-height: 1.65;
 }
@@ -477,14 +477,14 @@ nav {
 }
 
 .download-title {
-    font-size: 44px;
+    font-size: 50px;
     font-weight: 800;
     letter-spacing: -1.2px;
     margin-bottom: 8px;
 }
 
 .download-free {
-    font-size: 16px;
+    font-size: 18px;
     color: var(--text-tertiary);
     margin-bottom: 48px;
 }
@@ -649,7 +649,7 @@ footer {
     .hero-text { order: 1; }
     .hero-cta-wrap { align-items: center; }
     .trust-badges { display: flex; justify-content: center; }
-    #hero-title { font-size: clamp(26px, 7.5vw, 40px); }
+    #hero-title { font-size: clamp(30px, 8.5vw, 46px); }
 }
 
 @media (max-width: 640px) {
