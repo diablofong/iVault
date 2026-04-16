@@ -23,14 +23,14 @@
 
 @media (prefers-color-scheme: light) {
     :root {
-        --bg:            oklch(0.96 0.005 260);
-        --bg-surface:    oklch(0 0 0 / 0.035);
-        --bg-surface-2:  oklch(0 0 0 / 0.065);
-        --text-primary:  oklch(0.16 0.02 260);
-        --text-secondary:oklch(0.16 0.02 260 / 0.58);
-        --text-tertiary: oklch(0.16 0.02 260 / 0.38);
-        --border:        oklch(0 0 0 / 0.08);
-        --border-strong: oklch(0 0 0 / 0.16);
+        --bg:            oklch(0.97 0.003 260);
+        --bg-surface:    oklch(0 0 0 / 0.055);
+        --bg-surface-2:  oklch(0 0 0 / 0.09);
+        --text-primary:  oklch(0.12 0.02 260);
+        --text-secondary:oklch(0.12 0.02 260 / 0.78);
+        --text-tertiary: oklch(0.12 0.02 260 / 0.56);
+        --border:        oklch(0 0 0 / 0.12);
+        --border-strong: oklch(0 0 0 / 0.22);
         --accent:        oklch(0.22 0.06 260);
         --accent-text:   oklch(0.98 0.01 250);
         --accent-glow:   oklch(0.40 0.10 260 / 0.10);
@@ -324,7 +324,7 @@ nav {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.8px;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     margin-bottom: 44px;
     text-align: center;
 }
