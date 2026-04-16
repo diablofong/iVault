@@ -68,7 +68,10 @@
                         <span class="dot-yellow"></span>
                         <span class="dot-green"></span>
                     </div>
-                    <img src="screenshots/ready-en.png" alt="iVault — device ready" id="hero-ss">
+                    <picture>
+                        <source srcset="screenshots/ready-en.webp" type="image/webp" id="hero-ss-src">
+                        <img src="screenshots/ready-en.png" alt="iVault — device ready" id="hero-ss" fetchpriority="high">
+                    </picture>
                 </div>
             </div>
         </div>
@@ -148,7 +151,10 @@
                     <div class="app-frame-bar">
                         <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
                     </div>
-                    <img src="screenshots/idle-first-en.png" alt="" id="ss-1-img">
+                    <picture>
+                        <source srcset="screenshots/idle-first-en.webp" type="image/webp" id="ss-1-src">
+                        <img src="screenshots/idle-first-en.png" alt="" id="ss-1-img" loading="lazy">
+                    </picture>
                 </div>
                 <span data-i18n="screenshot.1">First launch</span>
             </div>
@@ -157,7 +163,10 @@
                     <div class="app-frame-bar">
                         <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
                     </div>
-                    <img src="screenshots/ready-en.png" alt="" id="ss-2-img">
+                    <picture>
+                        <source srcset="screenshots/ready-en.webp" type="image/webp" id="ss-2-src">
+                        <img src="screenshots/ready-en.png" alt="" id="ss-2-img" loading="lazy">
+                    </picture>
                 </div>
                 <span data-i18n="screenshot.2">Device ready</span>
             </div>
@@ -166,7 +175,10 @@
                     <div class="app-frame-bar">
                         <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
                     </div>
-                    <img src="screenshots/backing-up-en.png" alt="" id="ss-3-img">
+                    <picture>
+                        <source srcset="screenshots/backing-up-en.webp" type="image/webp" id="ss-3-src">
+                        <img src="screenshots/backing-up-en.png" alt="" id="ss-3-img" loading="lazy">
+                    </picture>
                 </div>
                 <span data-i18n="screenshot.3">Backing up</span>
             </div>
@@ -175,7 +187,10 @@
                     <div class="app-frame-bar">
                         <span class="dot-red"></span><span class="dot-yellow"></span><span class="dot-green"></span>
                     </div>
-                    <img src="screenshots/idle-returning-en.png" alt="" id="ss-4-img">
+                    <picture>
+                        <source srcset="screenshots/idle-returning-en.webp" type="image/webp" id="ss-4-src">
+                        <img src="screenshots/idle-returning-en.png" alt="" id="ss-4-img" loading="lazy">
+                    </picture>
                 </div>
                 <span data-i18n="screenshot.4">All done</span>
             </div>
@@ -237,26 +252,48 @@ window.setLang = function(lang) {
 
 const SS_MAP = {
     en: {
-        'hero-ss':  'screenshots/ready-en.png',
-        'ss-1-img': 'screenshots/idle-first-en.png',
-        'ss-2-img': 'screenshots/ready-en.png',
-        'ss-3-img': 'screenshots/backing-up-en.png',
-        'ss-4-img': 'screenshots/idle-returning-en.png',
+        img: {
+            'hero-ss':  'screenshots/ready-en.png',
+            'ss-1-img': 'screenshots/idle-first-en.png',
+            'ss-2-img': 'screenshots/ready-en.png',
+            'ss-3-img': 'screenshots/backing-up-en.png',
+            'ss-4-img': 'screenshots/idle-returning-en.png',
+        },
+        webp: {
+            'hero-ss-src':  'screenshots/ready-en.webp',
+            'ss-1-src': 'screenshots/idle-first-en.webp',
+            'ss-2-src': 'screenshots/ready-en.webp',
+            'ss-3-src': 'screenshots/backing-up-en.webp',
+            'ss-4-src': 'screenshots/idle-returning-en.webp',
+        },
     },
     'zh-TW': {
-        'hero-ss':  'screenshots/ready-zh.png',
-        'ss-1-img': 'screenshots/idle-first-zh.png',
-        'ss-2-img': 'screenshots/ready-zh.png',
-        'ss-3-img': 'screenshots/backing-up-zh.png',
-        'ss-4-img': 'screenshots/idle-returning-zh.png',
+        img: {
+            'hero-ss':  'screenshots/ready-zh.png',
+            'ss-1-img': 'screenshots/idle-first-zh.png',
+            'ss-2-img': 'screenshots/ready-zh.png',
+            'ss-3-img': 'screenshots/backing-up-zh.png',
+            'ss-4-img': 'screenshots/idle-returning-zh.png',
+        },
+        webp: {
+            'hero-ss-src':  'screenshots/ready-zh.webp',
+            'ss-1-src': 'screenshots/idle-first-zh.webp',
+            'ss-2-src': 'screenshots/ready-zh.webp',
+            'ss-3-src': 'screenshots/backing-up-zh.webp',
+            'ss-4-src': 'screenshots/idle-returning-zh.webp',
+        },
     }
 };
 
 function updateScreenshots(lang) {
     const map = SS_MAP[lang] || SS_MAP['en'];
-    for (const [id, src] of Object.entries(map)) {
+    for (const [id, src] of Object.entries(map.img)) {
         const el = document.getElementById(id);
         if (el) el.src = src;
+    }
+    for (const [id, srcset] of Object.entries(map.webp)) {
+        const el = document.getElementById(id);
+        if (el) el.srcset = srcset;
     }
 }
 
