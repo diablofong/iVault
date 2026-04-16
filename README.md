@@ -10,6 +10,13 @@
 
 iVault transfers photos directly from your iPhone via the Apple AFC protocol — no iTunes, no iCloud, no subscription.
 
+## Features
+
+- Direct USB transfer via AFC protocol — no iTunes backup process
+- Auto monthly folder sorting by EXIF shoot date
+- Resume interrupted backups
+- macOS & Windows native UI (Wails + WebView2)
+
 ## Screenshots
 
 <table>

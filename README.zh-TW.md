@@ -10,6 +10,13 @@
 
 iVault 透過 Apple AFC 協定直接從 iPhone 傳輸照片，無需 iTunes、無需 iCloud、無訂閱費。
 
+## 功能特色
+
+- 透過 AFC 協定直接 USB 傳輸 — 不走 iTunes 備份流程
+- 依 EXIF 拍攝日期自動按月份分類
+- 支援中斷後繼續備份
+- macOS & Windows 原生 UI（Wails + WebView2）
+
 ## 應用程式截圖
 
 <table>
