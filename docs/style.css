@@ -257,15 +257,32 @@ nav {
 .app-frame-bar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 10px 14px;
+    justify-content: space-between;
+    padding: 8px 12px;
     background: var(--frame-bar);
     border-bottom: 1px solid var(--border);
 }
 
-.dot-red    { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; flex-shrink: 0; }
-.dot-yellow { width: 11px; height: 11px; border-radius: 50%; background: #febc2e; flex-shrink: 0; }
-.dot-green  { width: 11px; height: 11px; border-radius: 50%; background: #28c840; flex-shrink: 0; }
+/* Windows-style title bar: app name on the left, window controls on the right */
+.app-frame-bar::before {
+    content: 'iVault';
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    letter-spacing: 0.1px;
+    font-family: inherit;
+}
+
+.app-frame-bar::after {
+    content: '⊟  ⊡  ✕';
+    font-size: 11px;
+    color: var(--text-tertiary);
+    letter-spacing: 4px;
+    opacity: 0.5;
+}
+
+/* Keep legacy dot classes inert (HTML still has the spans) */
+.dot-red, .dot-yellow, .dot-green { display: none; }
 
 .app-frame img { display: block; width: 100%; height: auto; }
 
