@@ -84,6 +84,10 @@ Found a bug or have a feature request? Please open an issue on [GitHub Issues](h
 
 Pull requests are welcome. Please open an issue first to discuss significant changes.
 
+## Privacy
+
+iVault does not collect, transmit, or store any personal data. All transfers happen locally over USB. See [PRIVACY.md](PRIVACY.md) for details.
+
 ## License
 
 [Apache License 2.0](LICENSE)

@@ -88,6 +88,10 @@ Go + Wails v2（UI Shell）
 
 歡迎提交 Pull Request。重大變更請先開 Issue 討論。
 
+## 隱私
+
+iVault 不收集、不傳送、不儲存任何個人資料。所有傳輸均在本機 USB 進行。詳見 [PRIVACY.md](PRIVACY.md)。
+
 ## 授權
 
 [Apache License 2.0](LICENSE)
