@@ -182,7 +182,7 @@ nav {
     gap: 7px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     letter-spacing: 0.8px;
     text-transform: uppercase;
     margin-bottom: 20px;
@@ -371,7 +371,7 @@ nav {
 
 .step p {
     font-size: 17px;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     line-height: 1.65;
 }
 
@@ -432,7 +432,7 @@ nav {
 
 .feature-card p {
     font-size: 16px;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     line-height: 1.65;
 }
 
@@ -463,9 +463,9 @@ nav {
 .app-frame-sm .dot-green { width: 9px; height: 9px; }
 
 .screenshot-item span {
-    font-size: 12px;
+    font-size: 15px;
     font-weight: 500;
-    color: var(--text-tertiary);
+    color: var(--text-secondary);
     text-align: center;
     letter-spacing: 0.2px;
 }
@@ -556,7 +556,7 @@ nav {
 .compare-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 .compare-table th,
@@ -568,7 +568,7 @@ nav {
 }
 
 .compare-table thead th {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
