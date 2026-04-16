@@ -336,7 +336,7 @@ nav {
     display: grid;
     grid-template-columns: 1fr auto 1fr auto 1fr;
     gap: 0;
-    align-items: start;
+    align-items: stretch;
 }
 
 .step {
@@ -344,6 +344,8 @@ nav {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
 }
 
 .step-num {
@@ -380,7 +382,7 @@ nav {
     padding: 0 16px;
     color: var(--text-tertiary);
     font-size: 28px;
-    padding-top: 44px;
+    align-self: center;
 }
 
 /* ── Features ───────────────────────────────────────────────── */
