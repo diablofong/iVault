@@ -10,7 +10,22 @@
 
 iVault 透過 Apple AFC 協定直接從 iPhone 傳輸照片，無需 iTunes、無需 iCloud、無訂閱費。
 
-<!-- TODO: 加入 hero GIF（docs/screenshots/demo.gif） -->
+## 應用程式截圖
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/idle-first-zh.png" width="100%"/><br/><sub>首次啟動</sub></td>
+    <td align="center"><img src="docs/screenshots/idle-returning-zh.png" width="100%"/><br/><sub>再次使用</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/ready-zh.png" width="100%"/><br/><sub>裝置就緒</sub></td>
+    <td align="center"><img src="docs/screenshots/backing-up-zh.png" width="100%"/><br/><sub>備份中</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/done-zh.png" width="100%"/><br/><sub>備份完成</sub></td>
+    <td></td>
+  </tr>
+</table>
 
 **[→ 下載與使用說明（官網）](https://diablofong.github.io/iVault)**
 
