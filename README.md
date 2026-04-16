@@ -10,7 +10,18 @@
 
 iVault transfers photos directly from your iPhone via the Apple AFC protocol — no iTunes, no iCloud, no subscription.
 
-<!-- TODO: add hero GIF (docs/screenshots/demo.gif) -->
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/idle-first-en.png" width="100%"/><br/><sub>First launch</sub></td>
+    <td align="center"><img src="docs/screenshots/idle-returning-en.png" width="100%"/><br/><sub>Returning user</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/ready-en.png" width="100%"/><br/><sub>Device ready</sub></td>
+    <td align="center"><img src="docs/screenshots/backing-up-en.png" width="100%"/><br/><sub>Backing up</sub></td>
+  </tr>
+</table>
 
 **[→ Download & user guide (website)](https://diablofong.github.io/iVault)**
 
