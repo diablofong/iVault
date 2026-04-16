@@ -56,7 +56,7 @@ func (m *Manager) Get() AppConfig {
 	return m.cfg
 }
 
-// Save 儲存設定到磁碟
+// Save 儲存設定到磁碟（atomic：先寫 .tmp 再 rename，避免 crash 時 config 損毀）
 func (m *Manager) Save(cfg AppConfig) error {
 	m.cfg = cfg
 
@@ -69,7 +69,15 @@ func (m *Manager) Save(cfg AppConfig) error {
 		return err
 	}
 
-	return os.WriteFile(m.filePath, data, 0600)
+	tmp := m.filePath + ".tmp"
+	if err := os.WriteFile(tmp, data, 0600); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, m.filePath); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 // AddRecord 新增備份紀錄並儲存

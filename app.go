@@ -307,6 +307,11 @@ func (a *App) OpenFolder(path string) error {
 	if strings.HasPrefix(path, `\\`) || strings.HasPrefix(path, "//") {
 		return fmt.Errorf("UNC path not allowed")
 	}
+	// Defense-in-depth：Windows explorer.exe 把逗號解析為 flag 分隔字元，
+	// 即便路徑實際存在也可能被用來附加隱藏 flag。阻擋含逗號的路徑。
+	if strings.ContainsRune(path, ',') {
+		return fmt.Errorf("path contains invalid character")
+	}
 	if !filepath.IsAbs(path) {
 		return fmt.Errorf("path must be absolute")
 	}
