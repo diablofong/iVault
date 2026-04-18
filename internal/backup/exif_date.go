@@ -64,8 +64,8 @@ func readHEICShootDate(localPath string) (time.Time, bool) {
 	}
 	defer f.Close()
 
-	// HEIC meta box 通常在檔案開頭 512KB 內
-	lr := &io.LimitedReader{R: f, N: 512 * 1024}
+	// HEIC meta box 通常在檔案開頭 2MB 內（部分裝置 EXIF 位置超過 512KB）
+	lr := &io.LimitedReader{R: f, N: 2 * 1024 * 1024}
 	data, err := io.ReadAll(lr)
 	if err != nil || len(data) < 16 {
 		return time.Time{}, false

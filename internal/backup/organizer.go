@@ -48,12 +48,15 @@ func (o *Organizer) ResolveLocalPath(file device.PhotoFile) string {
 }
 
 // ResolveByDate 根據 EXIF 拍攝日期決定最終路徑並移動檔案。
-// 若 organizeByDate 為 false，直接移動到 {backupPath}/{deviceName}/ 下。
+// dateOK 為 false 表示 EXIF 讀取失敗，此時目標為 _unknown-date/ 子目錄。
+// 若 organizeByDate 為 false 且 dateOK 為 true，直接移動到 {backupPath}/{deviceName}/ 下。
 // 若移動失敗，保留在 staging 路徑（不影響備份正確性）。
 // 回傳最終實際路徑。
-func (o *Organizer) ResolveByDate(file device.PhotoFile, stagingPath string, shootDate time.Time) string {
+func (o *Organizer) ResolveByDate(file device.PhotoFile, stagingPath string, shootDate time.Time, dateOK bool) string {
 	var dir string
-	if o.organizeByDate {
+	if !dateOK {
+		dir = filepath.Join(o.backupPath, o.deviceFolder, "_unknown-date")
+	} else if o.organizeByDate {
 		yearMonth := shootDate.Format("2006-01")
 		dir = filepath.Join(o.backupPath, o.deviceFolder, yearMonth)
 	} else {

@@ -158,6 +158,21 @@ func (a *App) GetDefaultBackupPath() string {
 	return platform.GetDefaultBackupPath()
 }
 
+// CheckBackupPath 進入 READY 頁前呼叫：確認上次備份路徑是否仍有效。
+// 若路徑記錄存在但磁碟上找不到（外接硬碟未插），emit backup:path-missing。
+// 設計決策：不在 startup 時跳 error，改由前端進入 READY 時主動呼叫。
+func (a *App) CheckBackupPath() {
+	cfg := a.configMgr.Get()
+	if cfg.LastBackupPath == "" {
+		return
+	}
+	if _, err := os.Stat(cfg.LastBackupPath); err != nil {
+		wailsRuntime.EventsEmit(a.ctx, "backup:path-missing", map[string]any{
+			"path": cfg.LastBackupPath,
+		})
+	}
+}
+
 // ManifestExists 檢查備份路徑下是否存有指定裝置的 manifest（斷點記錄）
 // 前端用來判斷「全部已是最新」是否還有效：若備份資料夾被刪，manifest 消失，
 // 就不該再顯示「全部已是最新」，避免誤導使用者。

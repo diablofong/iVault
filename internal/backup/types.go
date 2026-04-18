@@ -36,10 +36,11 @@ type BackupResult struct {
 	TotalBytes   int64        `json:"totalBytes"`
 	Duration     string       `json:"duration"`
 	BackupPath   string       `json:"backupPath"`
-	HasHeic          bool         `json:"hasHeic"`
-	Interrupted      bool         `json:"interrupted"`      // 是否為中途取消
-	InterruptedDone  int          `json:"interruptedDone"`  // 中斷時已完成檔案數
-	InterruptedTotal int          `json:"interruptedTotal"` // 中斷時全部待備份數
+	HasHeic            bool         `json:"hasHeic"`
+	UnknownDateCount   int          `json:"unknownDateCount"`   // EXIF 無法讀取日期的檔案數
+	Interrupted        bool         `json:"interrupted"`        // 是否為中途取消
+	InterruptedDone    int          `json:"interruptedDone"`    // 中斷時已完成檔案數
+	InterruptedTotal   int          `json:"interruptedTotal"`   // 中斷時全部待備份數
 }
 
 // FailedFile 單一失敗檔案

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -249,13 +250,10 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 				continue
 			}
 
-			// 讀取拍攝日期
-			shootDate, ok := ReadShootDate(localPath)
-			if !ok {
-				shootDate = time.Now()
-			}
+			// 讀取拍攝日期（失敗時 dateOK=false，檔案將進 _unknown-date/）
+			shootDate, dateOK := ReadShootDate(localPath)
 
-			localPath = e.organizer.ResolveByDate(file, localPath, shootDate)
+			localPath = e.organizer.ResolveByDate(file, localPath, shootDate, dateOK)
 			localRelPath = e.organizer.RelativeLocalPath(localPath)
 
 			e.manifest.MarkDone(file, localRelPath)
@@ -273,10 +271,13 @@ func (e *Engine) Run(ctx context.Context) (*BackupResult, error) {
 			} else if isVideoExt(ext) {
 				result.VideosCount++
 			}
+			if !dateOK {
+				result.UnknownDateCount++
+			}
 			resultMu.Unlock()
 
 			currentMonth := ""
-			if ok {
+			if dateOK {
 				currentMonth = shootDate.Format("2006-01")
 			}
 			n32 := doneCount.Add(1)
@@ -384,10 +385,15 @@ func (e *Engine) scanDCIM(ctx context.Context, afcClient *afc.Client) (newFiles 
 
 			relativePath := dir + "/" + fileName
 
-			// Phase 1a：檢查 manifest，已備份的直接跳過（不 Stat）
-			if _, exists := e.manifest.Files[relativePath]; exists {
-				skippedCount++
-				continue
+			// Phase 1a：檢查 manifest，已備份且本地檔案存在的直接跳過（不 Stat）
+			// 若本地檔案已被刪除，視為新檔重新備份（避免備份記錄有但檔案不見了）
+			if entry, exists := e.manifest.Files[relativePath]; exists {
+				localAbsPath := filepath.Join(e.config.BackupPath, entry.LocalPath)
+				if _, statErr := os.Stat(localAbsPath); statErr == nil {
+					skippedCount++
+					continue
+				}
+				// 本地不存在 → 繼續往下做 Phase 1b Stat + 排入 newFiles
 			}
 
 			// Phase 1b：新檔案才 Stat 拿 size
