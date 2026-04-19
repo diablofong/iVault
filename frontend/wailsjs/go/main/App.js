@@ -10,6 +10,10 @@ export function CheckAppleDevicesInstalled() {
   return window['go']['main']['App']['CheckAppleDevicesInstalled']();
 }
 
+export function CheckBackupPath() {
+  return window['go']['main']['App']['CheckBackupPath']();
+}
+
 export function CheckTrustStatus(arg1) {
   return window['go']['main']['App']['CheckTrustStatus'](arg1);
 }

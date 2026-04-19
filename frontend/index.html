@@ -20,6 +20,7 @@
                     </svg>
                 </span>
                 <span class="titlebar-logo-text">iVault</span>
+                <span class="titlebar-version">v1.0.0</span>
             </div>
             <div class="titlebar-divider"></div>
             <div class="lang-toggle" id="btn-lang-toggle">
@@ -57,7 +58,14 @@
                 <!-- 變體 B：回訪 -->
                 <div class="idle-variant" id="idle-variant-returning" style="display:none">
                     <h2 data-i18n="idle.returning.title">歡迎回來</h2>
-                    <p class="state-hint" id="idle-last-backup-info"></p>
+                    <div class="idle-info-row">
+                        <p class="state-hint" id="idle-last-backup-info"></p>
+                        <button class="idle-folder-btn" id="btn-idle-open-folder" style="display:none" title="開啟備份資料夾">
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 4a1 1 0 0 1 1-1h4l1 1.5H13a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
                     <p class="state-hint idle-cta" data-i18n="idle.returning.cta">用 USB 線連接 iPhone 繼續</p>
                 </div>
 
@@ -181,6 +189,7 @@
                     <span data-i18n="ready.last_backup">上次備份</span>
                     <span class="last-backup-time" id="last-backup-info">-</span>
                 </div>
+                <p id="ready-incremental-hint" class="state-hint" style="display:none" data-i18n="ready.incremental_hint"></p>
 
                 <div class="path-section">
                     <div class="path-row">
@@ -219,6 +228,7 @@
                     <span><span data-i18n="backup.eta_label">剩餘</span> <span id="backup-eta">-</span></span>
                 </div>
                 <p class="state-hint" id="backup-current-story" data-i18n="backup.scanning">準備中...</p>
+                <p class="state-hint backup-minimize-hint" data-i18n="backup.minimize_hint"></p>
                 <p class="backup-count">
                     <span id="backup-skip-count" class="skip-count"></span>
                 </p>
@@ -239,6 +249,7 @@
                     </div>
                     <h2 id="done-main-title">備份完成</h2>
                     <p class="state-hint done-subtitle" id="done-subtitle"></p>
+                    <p class="state-hint done-safe-hint" data-i18n="done.safe_hint"></p>
                     <!-- 首次備份彩蛋 -->
                     <p class="done-first-egg" id="done-first-egg" style="display:none" data-i18n="done.first_egg">這是你用 iVault 備份的第一次。歡迎。</p>
                 </div>
@@ -248,6 +259,7 @@
                     <div class="bento-cell bento-stat">
                         <div class="bento-stat-number metric" id="done-photos-count">0</div>
                         <div class="bento-stat-label" data-i18n="done.label_photos">照片</div>
+                        <div class="bento-live-photo-note" data-i18n="done.live_photo_note"></div>
                     </div>
                     <div class="bento-cell bento-stat">
                         <div class="bento-stat-number metric" id="done-videos-count">0</div>
@@ -261,6 +273,11 @@
                         <div class="bento-stat-number metric" id="done-duration-value">-</div>
                         <div class="bento-stat-label" data-i18n="done.label_duration">花了</div>
                     </div>
+                </div>
+
+                <!-- 未知日期警告（有才顯示） -->
+                <div id="unknown-date-section" class="unknown-date-hint" style="display:none">
+                    <span id="unknown-date-text"></span>
                 </div>
 
                 <!-- 失敗統計（有失敗才顯示） -->
@@ -314,6 +331,7 @@
                 <p class="state-desc selectable" id="error-message">-</p>
                 <button class="btn-primary" id="btn-retry" data-i18n="error.retry">重試</button>
                 <button class="btn-secondary" id="btn-back-to-idle" data-i18n="error.back">返回首頁</button>
+                <button class="btn-primary" id="btn-relocate-folder" style="display:none" data-i18n="error.path_missing_action"></button>
                 <button class="btn-report-issue" id="btn-report-issue" style="display:none" data-i18n="error.report">回報問題 →</button>
             </div>
         </div>

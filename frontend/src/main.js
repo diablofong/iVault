@@ -8,6 +8,7 @@ import {
     CheckTrustStatus,
     TriggerTrustCheck,
     CheckAppleDevicesInstalled,
+    CheckBackupPath,
     SelectBackupFolder,
     GetDefaultBackupPath,
     GetDiskInfo,
@@ -87,6 +88,9 @@ async function init() {
         [platformInfo, appConfig] = await Promise.all([GetPlatformInfo(), LoadConfig()]);
         document.body.classList.add(`os-${platformInfo.os}`);
         if (platformInfo.darkMode) document.body.classList.add('dark');
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            document.body.classList.toggle('dark', e.matches);
+        });
     } catch (e) {
         console.error('init:', e);
     }
@@ -216,6 +220,14 @@ function registerEvents() {
         if (success) success.style.display = '';
     });
 
+    EventsOn('backup:path-missing', () => {
+        setState('error', {
+            code: 'BACKUP_PATH_MISSING',
+            message: t('error.BACKUP_PATH_MISSING'),
+            recoverable: false,
+        });
+    });
+
     EventsOn('amds:starting', () => {
         const el = document.getElementById('amds-status');
         if (el) el.style.display = '';
@@ -269,6 +281,10 @@ function bindHandlers() {
         setLang(getLang() === 'zh-TW' ? 'en' : 'zh-TW');
         if (currentState === 'idle') onEnterIdle();
         if (currentState === 'ready') onEnterReady(currentDevice || {});
+        if (currentState === 'done') {
+            const backBtn = document.getElementById('btn-backup-again');
+            if (backBtn) backBtn.textContent = currentDevice?.udid ? t('done.continue') : t('done.back');
+        }
     });
 
     // DRIVER_MISSING
@@ -381,6 +397,18 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
         else setState('idle');
     });
     document.getElementById('btn-back-to-idle')?.addEventListener('click', () => setState('idle'));
+    document.getElementById('btn-relocate-folder')?.addEventListener('click', async () => {
+        try {
+            const path = await SelectBackupFolder();
+            if (!path) return;
+            selectedPath = path;
+            setState('ready', currentDevice || {});
+        } catch (e) {}
+    });
+    document.getElementById('btn-idle-open-folder')?.addEventListener('click', () => {
+        const path = appConfig?.lastBackupPath;
+        if (path) OpenFolder(path);
+    });
     document.getElementById('btn-report-issue')?.addEventListener('click', () => {
         OpenURL('https://github.com/diablofong/ivault/issues/new');
     });
@@ -407,11 +435,12 @@ async function onEnterIdle() {
         const total = cfg?.interruptedTotal ?? 0;
         const infoEl = document.getElementById('idle-interrupted-info');
         if (infoEl) {
+            const lang = getLang();
             if (done > 0 && total > 0) {
-                infoEl.textContent = (getLang() === 'zh-TW'
-                    ? `已備份 ${fmt(done)} / ${fmt(total)}`
-                    : `Backed up ${fmt(done)} of ${fmt(total)}`)
-                    + ` · ${t('idle.interrupted.progress')}`;
+                const next = done + 1;
+                infoEl.textContent = lang === 'zh-TW'
+                    ? `已備份 ${fmt(done)} / ${fmt(total)} · 下次將從第 ${fmt(next)} 個繼續`
+                    : `Backed up ${fmt(done)} of ${fmt(total)} · Will resume from #${fmt(next)}`;
             } else {
                 infoEl.textContent = t('idle.interrupted.progress');
             }
@@ -432,6 +461,8 @@ async function onEnterIdle() {
             return;
         }
         document.getElementById('idle-variant-returning').style.display = '';
+        const folderBtn = document.getElementById('btn-idle-open-folder');
+        if (folderBtn) folderBtn.style.display = cfg?.lastBackupPath ? '' : 'none';
         const dateStr = formatRelativeDate(rec.date);
         const photos = rec.photosCount ?? 0;
         const videos = rec.videosCount ?? 0;
@@ -507,6 +538,8 @@ async function onEnterReady(info) {
         try { selectedPath = await GetDefaultBackupPath(); } catch (e) {}
     }
     setEl('backup-path', selectedPath || '-');
+    const pathEl = document.getElementById('backup-path');
+    if (pathEl && selectedPath) pathEl.title = selectedPath;
     if (selectedPath) updateDiskInfo(selectedPath);
     if (info.udid && selectedPath) estimateSize(info.udid, selectedPath);
 
@@ -514,6 +547,13 @@ async function onEnterReady(info) {
     if (checkbox && appConfig) checkbox.checked = !!appConfig.convertHeic;
 
     await updateLastBackupRow(selectedPath, info.udid);
+
+    const incrementalHint = document.getElementById('ready-incremental-hint');
+    if (incrementalHint) {
+        incrementalHint.style.display = (appConfig?.history?.length > 0) ? '' : 'none';
+    }
+
+    try { CheckBackupPath(); } catch (e) {}
 }
 
 // updateLastBackupRow 以正確的優先順序更新 READY 頁的 last-backup-row：
@@ -654,11 +694,27 @@ function onEnterDone(result) {
         });
     }
 
+    // 未知日期警告
+    const unknownSection = document.getElementById('unknown-date-section');
+    const unknownText = document.getElementById('unknown-date-text');
+    const unknownCount = result.unknownDateCount ?? 0;
+    if (unknownSection) unknownSection.style.display = unknownCount > 0 ? '' : 'none';
+    if (unknownText && unknownCount > 0) {
+        const lang = getLang();
+        unknownText.textContent = lang === 'zh-TW'
+            ? `${fmt(unknownCount)} ${t('done.unknown_date_hint')}`
+            : `${fmt(unknownCount)} ${t('done.unknown_date_hint')}`;
+    }
+
     // Windows HEIC 提示
     const heicHint = document.getElementById('heic-hint');
     if (heicHint) {
         heicHint.style.display = (platformInfo?.os === 'windows' && result.hasHeic) ? '' : 'none';
     }
+
+    // 完成/繼續按鈕動態文案
+    const backBtn = document.getElementById('btn-backup-again');
+    if (backBtn) backBtn.textContent = currentDevice?.udid ? t('done.continue') : t('done.back');
 
     triggerSuccessParticles();
 }
@@ -693,10 +749,24 @@ function onEnterError(err) {
     const titleEl = document.getElementById('error-title');
     const retryBtn = document.getElementById('btn-retry');
     const issueBtn = document.getElementById('btn-report-issue');
+    const relocateBtn = document.getElementById('btn-relocate-folder');
 
     // 重設按鈕狀態
     if (retryBtn) { retryBtn.style.display = ''; retryBtn.textContent = t('error.retry'); }
     if (issueBtn) issueBtn.style.display = 'none';
+    if (relocateBtn) relocateBtn.style.display = 'none';
+
+    // BACKUP_PATH_MISSING → 顯示「選擇新資料夾」按鈕
+    if (code === 'BACKUP_PATH_MISSING') {
+        if (titleEl) titleEl.textContent = t('error.title');
+        const oldPath = appConfig?.lastBackupPath;
+        setEl('error-message', oldPath
+            ? `${t('error.BACKUP_PATH_MISSING')}\n${oldPath}`
+            : t('error.BACKUP_PATH_MISSING'));
+        if (retryBtn) retryBtn.style.display = 'none';
+        if (relocateBtn) { relocateBtn.style.display = ''; relocateBtn.textContent = t('error.path_missing_action'); }
+        return;
+    }
 
     // DEVICE_DISCONNECTED → 1.5 秒後自動回 IDLE
     if (code === 'DEVICE_DISCONNECTED') {
@@ -779,6 +849,8 @@ async function onSelectFolder() {
         if (!path) return;
         selectedPath = path;
         setEl('backup-path', path);
+        const pathEl = document.getElementById('backup-path');
+        if (pathEl) pathEl.title = path;
         updateDiskInfo(path);
         if (currentDevice?.udid) {
             estimateSize(currentDevice.udid, path);

@@ -343,6 +343,10 @@ body.os-windows .card { border-radius: 12px; }
     50%      { opacity: 0.95; transform: scale(1.04); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .state-view#view-idle.active .idle-icon svg { animation: none; }
+}
+
 /* ── 隱私聲明（IDLE 頁） ──────────────────────────────────── */
 .privacy-badge {
     display: flex;
@@ -1141,6 +1145,7 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
 .idle-cta {
     font-size: 13px;
     color: var(--text-secondary);
+    font-weight: 600;
 }
 
 .idle-tagline {
@@ -1174,6 +1179,72 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
 .done-open-folder {
     flex: 2 !important;
 }
+
+/* ── Titlebar 版本號 ─────────────────────────────────────── */
+.titlebar-version {
+    font-size: 11px;
+    color: var(--text-quaternary);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-left: -2px;
+}
+
+/* ── IDLE 回訪資料夾行 ───────────────────────────────────── */
+.idle-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.idle-folder-btn {
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    color: var(--text-quaternary);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color 150ms, background 150ms;
+    line-height: 0;
+    flex-shrink: 0;
+}
+
+.idle-folder-btn:hover {
+    color: var(--text-secondary);
+    background: var(--bg-surface-2);
+}
+
+/* ── DONE 安全標語 ──────────────────────────────────────── */
+.done-safe-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-align: center;
+    line-height: 1.5;
+    margin-top: -2px;
+}
+
+/* ── DONE Live Photo 附注 ───────────────────────────────── */
+.bento-live-photo-note {
+    font-size: 10px;
+    color: var(--text-quaternary);
+    text-align: center;
+    margin-top: 2px;
+    letter-spacing: 0.01em;
+}
+
+/* ── DONE 未知日期警告 ──────────────────────────────────── */
+.unknown-date-hint {
+    background: oklch(0.78 0.16 60 / 0.07);
+    border: 1px solid oklch(0.78 0.16 60 / 0.22);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--warning);
+    text-align: center;
+    line-height: 1.5;
+}
+
+body.os-windows .unknown-date-hint { border-radius: 5px; }
 
 /* ── DRIVER_MISSING 新樣式 ────────────────────────────────── */
 .faq-answer {

@@ -8,7 +8,7 @@ export default {
     'idle.returning.cta':       'Connect iPhone with a USB cable to continue',
 
     'idle.interrupted.title':   'Your last backup was interrupted',
-    'idle.interrupted.progress':'Progress is safely preserved',
+    'idle.interrupted.progress':'Backup interrupted — will resume on reconnect',
     'idle.interrupted.cta':     'Reconnect iPhone to resume',
 
     'idle.amds_starting':       'Starting Apple Devices service, the app may briefly appear then close...',
@@ -46,6 +46,7 @@ export default {
     'driver.faq_a':        'Apple Devices is a free official driver from Apple that lets Windows recognize your iPhone. Completely safe — iVault never accesses your Apple account.',
 
     // READY
+    'ready.incremental_hint': 'iVault only copies new photos — previously backed up files are skipped.',
     'ready.label_to':    'Back up to',
     'ready.choose':      'Choose',
     'ready.heic':        'Also save JPEG copies of HEIC photos',
@@ -59,6 +60,7 @@ export default {
     'error.unknown_fallback': 'An unexpected error occurred. Please try again.',
 
     // BACKING_UP
+    'backup.minimize_hint': 'You can minimize — backup continues in the background',
     'backup.title':    'Backing Up',
     'backup.scanning': 'Scanning photo library...',
     'backup.month':    'Backing up memories from {month}/{year} · {cur} of {total}',
@@ -71,6 +73,10 @@ export default {
     'done.returning.title':  '{photos} new photos and {videos} new videos added',
     'done.subtitle':         'Backed up on {date}',
     'done.first_egg':        'This is your first backup with iVault. Welcome.',
+    'done.safe_hint':        'Your photos are safely stored on this computer. You can unplug your iPhone.',
+    'done.live_photo_note':  'Includes Live Photo originals',
+    'done.unknown_date_hint':'photos could not be dated and were placed in the "unknown-date" folder',
+    'done.continue':         'Continue',
 
     'done.label_photos':     'Photos',
     'done.label_videos':     'Videos',
@@ -98,6 +104,7 @@ export default {
     'error.AFC_TIMEOUT':         'iPhone connection is unstable. Try a different USB cable or reconnect.',
     'error.AFC_CONNECT_FAILED':  'Cannot access iPhone photos. Make sure your iPhone is unlocked.',
     'error.BACKUP_PATH_MISSING': 'Backup folder not found. (Did you unplug an external drive?)',
+    'error.path_missing_action': 'Choose a New Folder',
     'error.amds_title':          'Apple Devices Failed to Start',
     'error.amds_desc':           'Please open Apple Devices once, then return to iVault and retry',
     'error.amds_retry':          'Retry',

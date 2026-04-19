@@ -8,7 +8,7 @@ export default {
     'idle.returning.cta':       '用 USB 線連接 iPhone 繼續',
 
     'idle.interrupted.title':   '你的上次備份被打斷了',
-    'idle.interrupted.progress':'進度安全保留',
+    'idle.interrupted.progress':'上次備份中斷，連線後將繼續',
     'idle.interrupted.cta':     '重新連接 iPhone 繼續備份',
 
     'idle.amds_starting':       '正在啟動 Apple Devices 服務，畫面可能短暫出現後自動關閉...',
@@ -46,6 +46,7 @@ export default {
     'driver.faq_a':        'Apple Devices 是 Apple 官方提供的免費驅動程式，讓 Windows 能辨識 iPhone。完全安全，iVault 不會存取你的 Apple 帳號。',
 
     // READY
+    'ready.incremental_hint': 'iVault 只複製新增的照片，已備份的不會重複。',
     'ready.label_to':    '備份到',
     'ready.choose':      '選擇',
     'ready.heic':        '備份後同時轉存 JPEG 副本',
@@ -59,6 +60,7 @@ export default {
     'error.unknown_fallback': '發生未預期的錯誤，請重試。',
 
     // BACKING_UP
+    'backup.minimize_hint': '最小化後備份會繼續在背景執行',
     'backup.title':    '備份中',
     'backup.scanning': '掃描照片清單...',
     'backup.month':    '正在備份 {year} 年 {month} 月的回憶 · 第 {cur} / {total} 個',
@@ -71,6 +73,10 @@ export default {
     'done.returning.title':  '新增 {photos} 張照片和 {videos} 段影片',
     'done.subtitle':         '備份於 {date}',
     'done.first_egg':        '這是你用 iVault 備份的第一次。歡迎。',
+    'done.safe_hint':        '照片已安全存在這台電腦，可以拔掉 iPhone 了。',
+    'done.live_photo_note':  '含 Live Photo 原始檔',
+    'done.unknown_date_hint':'張照片日期無法讀取，已放入「未知日期」資料夾',
+    'done.continue':         '繼續',
 
     'done.label_photos':     '照片',
     'done.label_videos':     '影片',
@@ -98,6 +104,7 @@ export default {
     'error.AFC_TIMEOUT':         'iPhone 連線不穩。請換一條 USB 線或重新插拔。',
     'error.AFC_CONNECT_FAILED':  '無法存取 iPhone 照片，請確認 iPhone 已解鎖。',
     'error.BACKUP_PATH_MISSING': '備份資料夾不見了（外接硬碟拔掉了嗎？）',
+    'error.path_missing_action': '選擇新資料夾',
     'error.amds_title':          'Apple Devices 未能啟動',
     'error.amds_desc':           '請手動打開 Apple Devices 一次後，回到 iVault 重試',
     'error.amds_retry':          '重試',
