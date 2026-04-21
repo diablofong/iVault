@@ -14,6 +14,7 @@ import (
 	"ivault/internal/device"
 	"ivault/internal/heic"
 	"ivault/internal/platform"
+	"ivault/internal/updater"
 
 	"github.com/danielpaulus/go-ios/ios"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -47,6 +48,23 @@ func (a *App) startup(ctx context.Context) {
 	a.configMgr = config.NewManager()
 	a.platformInfo = platform.Detect()
 	go a.watchDevices()
+	go a.checkForUpdate()
+}
+
+// checkForUpdate runs once at startup: fetches the latest GitHub release and
+// emits update:available if a newer version exists. Errors are silently dropped.
+func (a *App) checkForUpdate() {
+	// Small delay so the UI can fully mount before we emit.
+	time.Sleep(3 * time.Second)
+
+	info, err := updater.Check(Version)
+	if err != nil || !info.Available {
+		return
+	}
+	wailsRuntime.EventsEmit(a.ctx, "update:available", map[string]any{
+		"version": info.Version,
+		"url":     info.URL,
+	})
 }
 
 // shutdown is called when the app is about to quit

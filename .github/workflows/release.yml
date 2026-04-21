@@ -36,10 +36,23 @@ jobs:
           path-type: inherit
 
       - name: Build
-        run: wails build -platform windows/amd64
+        run: wails build -platform windows/amd64 -ldflags "-X 'main.Version=${{ github.ref_name }}'"
         env:
           CGO_ENABLED: '1'
           CGO_LDFLAGS: '-static -lpthread'
+
+      # SignPath 程式碼簽章（需 SignPath 免費開源方案核准後啟用）
+      # - name: Sign with SignPath
+      #   uses: SignPath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+      #     project-slug: ivault
+      #     signing-policy-slug: release-signing
+      #     artifact-configuration-slug: windows-exe
+      #     github-artifact-id: windows-amd64
+      #     wait-for-completion: true
+      #     output-artifact-directory: build/bin
 
       - uses: actions/upload-artifact@v4
         with:

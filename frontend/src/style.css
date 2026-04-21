@@ -1254,3 +1254,27 @@ body.os-windows .unknown-date-hint { border-radius: 5px; }
     padding: 8px 0 0;
     animation: fade-in 200ms ease both;
 }
+
+
+/* ── Update banner ──────────────────────────────────────── */
+.update-banner {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 10px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: oklch(0.55 0.18 250 / 0.10);
+    border: 1px solid oklch(0.55 0.18 250 / 0.25);
+    font-size: 11px;
+    color: oklch(0.65 0.18 250);
+    text-decoration: none;
+    transition: background 150ms, border-color 150ms;
+}
+.update-banner:hover {
+    background: oklch(0.55 0.18 250 / 0.18);
+    border-color: oklch(0.55 0.18 250 / 0.45);
+}
+body:not(.dark) .update-banner {
+    color: oklch(0.42 0.18 250);
+}

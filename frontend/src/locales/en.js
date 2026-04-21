@@ -12,6 +12,8 @@ export default {
     'idle.interrupted.cta':     'Reconnect iPhone to resume',
 
     'idle.amds_starting':       'Starting Apple Devices service, the app may briefly appear then close...',
+    'idle.update.prefix':       'New version',
+    'idle.update.suffix':       'available →',
 
     // DEVICE_FOUND
     'device.reading': 'Verifying device...',

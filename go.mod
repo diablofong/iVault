@@ -3,6 +3,7 @@ module ivault
 go 1.23.0
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/adrium/goheif v0.0.0-20230113233934-ca402e77a786
 	github.com/danielpaulus/go-ios v1.0.206
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
@@ -11,7 +12,6 @@ require (
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
-	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

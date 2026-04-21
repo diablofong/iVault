@@ -271,6 +271,19 @@ function registerEvents() {
             if (section) section.style.display = 'none';
         }
     });
+
+    EventsOn('update:available', (data) => {
+        const banner = document.getElementById('update-banner');
+        const versionEl = document.getElementById('update-version');
+        if (!banner || !data?.version) return;
+        if (versionEl) versionEl.textContent = data.version;
+        banner.href = data.url || '#';
+        banner.style.display = '';
+        banner.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (data.url) OpenURL(data.url).catch(() => {});
+        });
+    });
 }
 
 // ============================================================
