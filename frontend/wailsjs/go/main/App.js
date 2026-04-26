@@ -98,9 +98,6 @@ export function LaunchAppleDevices() {
   return window['go']['main']['App']['LaunchAppleDevices']();
 }
 
-export function CheckITunesRunning() {
-  return window['go']['main']['App']['CheckITunesRunning']();
-}
 
 export function GetBackupEstimate(arg1, arg2) {
   return window['go']['main']['App']['GetBackupEstimate'](arg1, arg2);

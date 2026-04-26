@@ -53,6 +53,4 @@ export function SetAutostart(arg1:boolean):Promise<void>;
 
 export function LaunchAppleDevices():Promise<void>;
 
-export function CheckITunesRunning():Promise<boolean>;
-
 export function GetBackupEstimate(arg1:string,arg2:string):Promise<backup.BackupEstimate>;

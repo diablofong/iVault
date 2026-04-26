@@ -88,10 +88,6 @@ export default {
     'backup.eta_label':     '剩餘',
     'error.unknown_fallback': '發生未預期的錯誤，請重試。',
 
-    // 警告
-    'warning.itunes':   'iTunes 正在執行中，可能與 iPhone 連線衝突，建議先關閉 iTunes。',
-    'warning.dismiss':  '知道了',
-
     // BACKING_UP（D/AC 改善）
     'backup.minimize_hint':  '可以最小化，備份會繼續在背景執行',
     'backup.title':          '備份中',

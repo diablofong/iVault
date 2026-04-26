@@ -25,7 +25,6 @@ import {
     SetAutostart,
     GetAutostart,
     LaunchAppleDevices,
-    CheckITunesRunning,
     GetBackupEstimate,
 } from '../wailsjs/go/main/App';
 import { t, renderAll, setLang, getLang } from './i18n.js';
@@ -496,12 +495,6 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
         LaunchAppleDevices();
     });
 
-    // AA: iTunes 警告關閉
-    document.getElementById('btn-dismiss-itunes')?.addEventListener('click', () => {
-        const w = document.getElementById('itunes-warning');
-        if (w) w.style.display = 'none';
-    });
-
     // H: Driver banner 安裝按鈕
     document.getElementById('btn-driver-banner-install')?.addEventListener('click', () => {
         resetDriverMissingView();
@@ -703,15 +696,6 @@ async function onEnterReady(info) {
 
     // R/S: 最大單檔 + 新檔數（用 GetBackupEstimate 取代 EstimateBackupSize）
     if (info.udid && selectedPath) estimateFull(info.udid, selectedPath);
-
-    // AA: iTunes 衝突警告
-    if (platformInfo?.os === 'windows') {
-        try {
-            const itunesRunning = await CheckITunesRunning();
-            const w = document.getElementById('itunes-warning');
-            if (w) w.style.display = itunesRunning ? '' : 'none';
-        } catch (e) {}
-    }
 
     // 自動備份規則：回訪用戶從 device-found 進入 ready → 3 秒倒數
     const isReturning = (appConfig?.history?.length ?? 0) > 0 && !appConfig?.lastInterrupted;

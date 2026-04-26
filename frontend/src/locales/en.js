@@ -88,10 +88,6 @@ export default {
     'backup.eta_label':     'Remaining',
     'error.unknown_fallback': 'An unexpected error occurred. Please try again.',
 
-    // WARNINGS
-    'warning.itunes':   'iTunes is running and may conflict with iPhone connection. Consider closing iTunes first.',
-    'warning.dismiss':  'Got it',
-
     // BACKING_UP
     'backup.minimize_hint':  'You can minimize — backup continues in the background',
     'backup.title':          'Backing Up',

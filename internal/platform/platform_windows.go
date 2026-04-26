@@ -373,15 +373,6 @@ func ShowToast(title, body string) {
 	_ = hiddenCmd("powershell", "-NoProfile", "-NonInteractive", "-Command", script).Run()
 }
 
-// ── iTunes 衝突偵測（AA）────────────────────────────────────
-
-// IsITunesRunning 偵測 iTunes 是否正在執行（可能干擾 AFC 通訊）
-func IsITunesRunning() bool {
-	out, err := runHiddenOutput(hiddenCmdTimeout, "tasklist",
-		"/FI", "IMAGENAME eq iTunes.exe", "/NH", "/FO", "CSV")
-	return err == nil && strings.Contains(string(out), "iTunes.exe")
-}
-
 // ── Apple Devices 啟動（I）──────────────────────────────────
 
 // LaunchAppleDevices 直接啟動 Apple Devices App（不透過 Store）

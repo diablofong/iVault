@@ -157,11 +157,6 @@ func (a *App) LaunchAppleDevices() {
 	go platform.LaunchAppleDevices()
 }
 
-// CheckITunesRunning Windows：偵測 iTunes 是否正在執行
-func (a *App) CheckITunesRunning() bool {
-	return platform.IsITunesRunning()
-}
-
 // GetBackupEstimate 取得備份估算（總大小、最大單檔、新檔數）
 func (a *App) GetBackupEstimate(udid string, backupPath string) (backup.BackupEstimate, error) {
 	photos, err := device.ScanDCIM(udid)
