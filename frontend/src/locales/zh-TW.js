@@ -3,6 +3,7 @@ export default {
     'idle.first.title':         '把 iPhone 的照片與影片，備份到這台電腦。',
     'idle.first.cta':           '用 USB 線連接 iPhone 開始',
     'idle.first.tagline':       '完全離線 · 開源免費 · 原始畫質',
+    'idle.first.privacy':       '不收集任何資料 · 不需要帳號',
 
     'idle.returning.title':     '歡迎回來',
     'idle.returning.cta':       '用 USB 線連接 iPhone 繼續',
@@ -13,7 +14,31 @@ export default {
 
     'idle.amds_starting':       '正在啟動 Apple Devices 服務，畫面可能短暫出現後自動關閉...',
     'idle.update.prefix':       '新版本',
-    'idle.update.suffix':       '已發布 →',
+    'idle.update.suffix':       '已發布（不影響備份資料）→',
+
+    // DRIVER BANNER（IDLE 頁早期警告）
+    'banner.driver_missing':    '需要 Apple Devices 才能連接 iPhone',
+    'banner.install':           '安裝',
+
+    // ONBOARDING（首次啟動三步引導）
+    'onboard.step_1_of_3':      '1 / 3',
+    'onboard.step_2_of_3':      '2 / 3',
+    'onboard.step_3_of_3':      '3 / 3',
+    'onboard.next':             '繼續',
+    'onboard.s1.title':         '先確認一件事',
+    'onboard.s1.desc':          'iVault 需要 Apple Devices（免費）才能讀取 iPhone 的照片',
+    'onboard.s1.installed':     'Apple Devices 已安裝',
+    'onboard.s1.skip':          '稍後再說',
+    'onboard.s2.title':         '備份到哪裡？',
+    'onboard.s3.title':         '開機後自動啟動？',
+    'onboard.s3.desc':          '插上 iPhone 就自動開始備份，不需要手動開啟 iVault',
+    'onboard.s3.yes':           '是，自動啟動',
+    'onboard.s3.no':            '不用，我自己開',
+
+    // AUTO BACKUP COUNTDOWN（自動備份規則）
+    'ready.auto_now':           '立即',
+    'ready.auto_snooze':        '稍後 15 分',
+    'ready.auto_skip':          '跳過',
 
     // DEVICE_FOUND
     'device.reading': '正在驗證裝置...',
@@ -33,19 +58,19 @@ export default {
     'trust.deny':          '不信任',
     'trust.allow':         '信任',
 
-    // DRIVER_MISSING
-    'driver.title':        '需要先安裝 Apple Devices（免費）',
-    'driver.subtitle':     '由 Apple 官方提供，只需安裝一次',
+    // DRIVER_MISSING（J 改寫：去技術術語）
+    'driver.title':        '讓 Windows 看見你的 iPhone',
+    'driver.subtitle':     'Apple 官方免費 App，安裝一次，永久使用',
     'driver.open_store':   '一鍵安裝',
     'driver.pending_title':'已開啟 Microsoft Store',
     'driver.hint':         '安裝完成後，點下方按鈕繼續',
-    'driver.recheck':      '我已安裝完成，重新偵測',
-    'driver.recheck_fail': '尚未偵測到，請確認 Apple Devices 已安裝完成',
+    'driver.recheck':      '我已安裝完成，繼續',
+    'driver.recheck_fail': '尚未偵測到，請確認已安裝完成',
     'driver.success':      '安裝完成！',
-    'driver.success_hint': '請重新插拔 iPhone 以繼續',
-    'driver.replug_done':  '繼續',
+    'driver.success_hint': '請重新插拔 iPhone 開始備份',
+    'driver.replug_done':  '開始',
     'driver.faq_toggle':   '為什麼需要？',
-    'driver.faq_a':        'Apple Devices 是 Apple 官方提供的免費驅動程式，讓 Windows 能辨識 iPhone。完全安全，iVault 不會存取你的 Apple 帳號。',
+    'driver.faq_a':        '這是 Apple 官方提供的免費 App（Microsoft Store 可下載），讓 Windows 能讀取 iPhone 的照片。安全可靠，iVault 不會存取你的 Apple ID 或 iCloud。',
 
     // READY
     'ready.incremental_hint': 'iVault 只複製新增的照片，已備份的不會重複。',
@@ -58,17 +83,28 @@ export default {
     'ready.files_count':    '張',
     'ready.disk_free':      '可用',
     'ready.estimate_label': '預估需要',
+    'ready.max_file_label': '最大單檔',
+    'ready.icloud_hint':    '如果開啟了 iCloud 最佳化儲存，部分照片可能只有縮圖，建議先在設定中下載完整原始檔。',
     'backup.eta_label':     '剩餘',
     'error.unknown_fallback': '發生未預期的錯誤，請重試。',
 
-    // BACKING_UP
-    'backup.minimize_hint': '最小化後備份會繼續在背景執行',
-    'backup.title':    '備份中',
-    'backup.scanning': '掃描照片清單...',
-    'backup.month':    '正在備份 {year} 年 {month} 月的回憶 · 第 {cur} / {total} 個',
-    'backup.nodate':   '正在備份第 {cur} / {total} 個',
-    'backup.cancel':   '取消',
-    'backup.skipped':  '跳過 {n} 個已備份',
+    // 警告
+    'warning.itunes':   'iTunes 正在執行中，可能與 iPhone 連線衝突，建議先關閉 iTunes。',
+    'warning.dismiss':  '知道了',
+
+    // BACKING_UP（D/AC 改善）
+    'backup.minimize_hint':  '可以最小化，備份會繼續在背景執行',
+    'backup.title':          '備份中',
+    'backup.scanning':       '正在讀取照片清單...',
+    'backup.nearly_done':    '快完成了，再等一下...',
+    'backup.month':          '正在備份 {year} 年 {month} 月的回憶 · 第 {cur} / {total} 個',
+    'backup.nodate':         '正在備份第 {cur} / {total} 個',
+    'backup.cancel':         '取消',
+    'backup.skipped':        '跳過 {n} 個已備份',
+    'backup.comfort_1':      '備份進行中，你可以去做其他事',
+    'backup.comfort_2':      '照片一張一張安全地複製中...',
+    'backup.comfort_3':      '大量照片需要一些時間，請耐心等待',
+    'backup.comfort_4':      '即將完成，請勿拔除 iPhone',
 
     // DONE — 兩種變體
     'done.first.title':      '你的 {photos} 張照片和 {videos} 段影片安全了',
@@ -87,6 +123,7 @@ export default {
     'done.label_new':        '新增',
     'done.label_skip':       '略過',
     'done.label_fail':       '失敗',
+    'done.saved_to':         '已存到',
     'done.open_folder':      '開啟備份資料夾 →',
     'done.back':             '完成',
     'done.failed_toggle':    '查看',
@@ -99,7 +136,8 @@ export default {
     'error.retry':               '重試',
     'error.back':                '返回首頁',
     'error.report':              '回報問題 →',
-    'error.DEVICE_DISCONNECTED': 'iPhone 被拔掉了。插回來就可以繼續。',
+    'error.DEVICE_DISCONNECTED': 'iPhone 斷線了（可能是沒電、或 USB 線鬆脫）。照片備份已暫停，重新插上繼續。',
+    'error.PERMISSION_DENIED':   '無法寫入備份資料夾。可能是防毒軟體攔截，請暫時關閉後重試，或選擇其他資料夾。',
     'error.AMDS_TIMEOUT':        '無法啟動 Apple 裝置服務。請重新插拔 iPhone 再試。',
     'error.DISK_FULL':           '備份硬碟空間不夠。請清出足夠空間後重試。',
     'error.TRUST_TIMEOUT':       'iPhone 沒有回應信任請求。請重新插拔再試。',
@@ -108,8 +146,10 @@ export default {
     'error.BACKUP_PATH_MISSING': '備份資料夾不見了（外接硬碟拔掉了嗎？）',
     'error.path_missing_action': '選擇新資料夾',
     'error.amds_title':          'Apple Devices 未能啟動',
-    'error.amds_desc':           '請手動打開 Apple Devices 一次後，回到 iVault 重試',
+    'error.amds_desc':           'Apple Devices 已安裝，但服務尚未就緒。請點下方按鈕開啟一次，再回到 iVault 重試。',
     'error.amds_retry':          '重試',
+    'error.amds_launch_btn':     '開啟 Apple Devices',
+    'error.AFC_CONNECT_FAILED':  '無法存取 iPhone 照片。可能原因：① 使用了充電線（不支援資料傳輸）② iPhone 尚未解鎖，請解鎖後重試。',
 
     // HEIC CONVERT
     'heic.converting': '正在轉換 HEIC...',

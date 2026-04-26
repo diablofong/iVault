@@ -17,19 +17,26 @@ import {
     StartBackup,
     CancelBackup,
     LoadConfig,
+    SaveConfig,
     OpenFolder,
     OpenURL,
     InstallAppleDevices,
     InstallHeicCodec,
+    SetAutostart,
+    GetAutostart,
+    LaunchAppleDevices,
+    CheckITunesRunning,
+    GetBackupEstimate,
 } from '../wailsjs/go/main/App';
 import { t, renderAll, setLang, getLang } from './i18n.js';
 
 // ============================================================
 // 狀態機
 // ============================================================
-const STATES = ['idle', 'device-found', 'trust-guide', 'driver-missing', 'ready', 'backing-up', 'done', 'error'];
+const STATES = ['idle', 'device-found', 'trust-guide', 'driver-missing', 'ready', 'backing-up', 'done', 'error', 'onboarding'];
 
 let currentState = null;
+let previousState = null;
 let currentDevice = null;
 let selectedPath = '';
 let backupResult = null;
@@ -37,6 +44,11 @@ let platformInfo = null;
 let appConfig = null;
 let trustHintTimer = null;
 let trustHardHintTimer = null;
+let autoCountdownTimer = null;
+let autoSnoozeTimer = null;
+let autoSnoozeActive = false;
+let backupStartTime = null;
+let comfortTimer = null;
 
 function setState(newState, data = {}) {
     if (!STATES.includes(newState)) {
@@ -54,12 +66,18 @@ function setState(newState, data = {}) {
         if (trustHardHintTimer) { clearTimeout(trustHardHintTimer); trustHardHintTimer = null; }
     }
 
+    // 離開 ready 時清除自動備份倒數
+    if (currentState === 'ready') {
+        clearAutoCountdown();
+    }
+
     // AMDS 提示只在 IDLE 時有效
     if (newState !== 'idle') {
         const amdsEl = document.getElementById('amds-status');
         if (amdsEl) amdsEl.style.display = 'none';
     }
 
+    previousState = currentState;
     currentState = newState;
     document.getElementById(`view-${newState}`)?.classList.add('active');
 
@@ -74,6 +92,7 @@ function onEnterState(state, data) {
         case 'ready':          onEnterReady(data);          break;
         case 'done':           onEnterDone(data);           break;
         case 'error':          onEnterError(data);          break;
+        case 'onboarding':     onEnterOnboarding();         break;
     }
 }
 
@@ -82,7 +101,18 @@ function onEnterState(state, data) {
 // ============================================================
 async function init() {
     document.getElementById('btn-minimize')?.addEventListener('click', () => WindowMinimise());
-    document.getElementById('btn-close')?.addEventListener('click', () => Quit());
+    // E: 備份中保護關閉
+    document.getElementById('btn-close')?.addEventListener('click', async () => {
+        if (currentState === 'backing-up') {
+            const lang = getLang();
+            const msg = lang === 'zh-TW'
+                ? '備份正在進行中\n\n關閉後備份將中斷，下次重新連接 iPhone 會從中斷點繼續。\n確定關閉？'
+                : 'Backup in progress\n\nClosing will interrupt the backup. It will resume next time you reconnect.\nClose anyway?';
+            if (!window.confirm(msg)) return;
+            try { await CancelBackup(); } catch (e) {}
+        }
+        Quit();
+    });
 
     try {
         [platformInfo, appConfig] = await Promise.all([GetPlatformInfo(), LoadConfig()]);
@@ -99,11 +129,27 @@ async function init() {
     registerEvents();
     bindHandlers();
 
+    // X: 首次啟動引導（有歷史紀錄的舊用戶升級 → 靜默跳過引導）
+    if (!appConfig?.onboardingDone) {
+        if (appConfig?.history?.length > 0) {
+            // 舊用戶升級：靜默標記完成
+            if (appConfig) {
+                appConfig.onboardingDone = true;
+                try { await SaveConfig(appConfig); } catch (e) {}
+            }
+        } else {
+            setState('onboarding');
+            return;
+        }
+    }
+
+    // H: Apple Devices 未裝 → banner 而非換頁
     if (platformInfo?.os === 'windows') {
         try {
             const installed = await CheckAppleDevicesInstalled();
             if (!installed) {
-                setState('driver-missing');
+                setDriverBanner(true);
+                setState('idle');
                 return;
             }
         } catch (e) {}
@@ -140,7 +186,13 @@ function registerEvents() {
 
     EventsOn('device:trust-changed', (data) => {
         if (data.trusted && currentState === 'trust-guide') {
-            setState('ready', currentDevice || { udid: data.udid });
+            // C: 短暫顯示確認動畫再自動推進
+            const btn = document.getElementById('btn-trust-recheck');
+            if (btn) {
+                btn.textContent = '✓ ' + (getLang() === 'zh-TW' ? '已信任' : 'Trusted');
+                btn.classList.add('trust-confirmed');
+            }
+            setTimeout(() => setState('ready', currentDevice || { udid: data.udid }), 700);
         }
     });
 
@@ -155,12 +207,19 @@ function registerEvents() {
     });
 
     EventsOn('backup:progress', (progress) => {
+        // AC: 啟動長備份安撫計時器（首次收到進度時）
+        if (!backupStartTime) {
+            backupStartTime = Date.now();
+            startComfortTimer();
+        }
         updateProgressUI(progress);
     });
 
     EventsOn('backup:complete', (result) => {
+        backupStartTime = null;
+        if (comfortTimer) { clearInterval(comfortTimer); comfortTimer = null; }
         backupResult = result;
-        // E-10: 更新前端 appConfig 快取，避免回 READY 時顯示舊歷史
+        // 更新前端 appConfig 快取，避免回 READY 時顯示舊歷史
         if (appConfig) {
             appConfig.lastInterrupted = false;
             appConfig.firstBackupDone = true;
@@ -178,10 +237,14 @@ function registerEvents() {
             }, ...(appConfig.history ?? [])];
         }
         setState('done', result);
+        // P: 備份完成靜默最小化（延遲 800ms 讓用戶短暫看到 DONE 畫面）
+        setTimeout(() => WindowMinimise(), 800);
     });
 
     EventsOn('backup:interrupted', (result) => {
-        // E-11: 取消後若 iPhone 仍插著 → 直接回 READY，不繞 IDLE
+        backupStartTime = null;
+        if (comfortTimer) { clearInterval(comfortTimer); comfortTimer = null; }
+        // 取消後若 iPhone 仍插著 → 直接回 READY，不繞 IDLE
         if (appConfig) {
             appConfig.lastInterrupted = true;
             if (result) {
@@ -197,35 +260,45 @@ function registerEvents() {
     });
 
     EventsOn('backup:error', (err) => {
+        backupStartTime = null;
+        if (comfortTimer) { clearInterval(comfortTimer); comfortTimer = null; }
         if (appConfig) appConfig.lastInterrupted = true;
         if (currentState === 'backing-up') {
             setState('error', err);
         }
     });
 
-    EventsOn('driver:required', (data) => {
-        if (currentState !== 'driver-missing') setState('driver-missing');
-        // WMI 偵測到裝置時不顯示 placeholder（P0-6：只在有偵測到時才顯示）
-        if (data?.deviceName) {
-            // 可在 driver view 附近加設備名稱，目前簡化版不顯示
-        }
+    EventsOn('driver:required', () => {
+        // H: 早期警告 banner，不強制換頁
+        setDriverBanner(true);
+        if (currentState !== 'idle' && currentState !== 'driver-missing') setState('idle');
     });
 
     EventsOn('driver:installed', () => {
-        const pending = document.getElementById('install-pending');
-        const initial = document.getElementById('install-initial');
-        const success = document.getElementById('install-success');
-        if (pending) pending.style.display = 'none';
-        if (initial) initial.style.display = 'none';
-        if (success) success.style.display = '';
+        setDriverBanner(false);
+        if (currentState === 'driver-missing') {
+            const pending = document.getElementById('install-pending');
+            const initial = document.getElementById('install-initial');
+            const success = document.getElementById('install-success');
+            if (pending) pending.style.display = 'none';
+            if (initial) initial.style.display = 'none';
+            if (success) success.style.display = '';
+        }
     });
 
-    EventsOn('backup:path-missing', () => {
-        setState('error', {
-            code: 'BACKUP_PATH_MISSING',
-            message: t('error.BACKUP_PATH_MISSING'),
-            recoverable: false,
-        });
+    EventsOn('backup:path-missing', async () => {
+        selectedPath = '';
+        setEl('backup-path', '-');
+        try {
+            const path = await SelectBackupFolder();
+            if (!path) return;
+            selectedPath = path;
+            setEl('backup-path', path);
+            const pathEl = document.getElementById('backup-path');
+            if (pathEl) pathEl.title = path;
+            updateDiskInfo(path);
+            if (currentDevice?.udid) estimateSize(currentDevice.udid, path);
+        } catch (e) {}
     });
 
     EventsOn('amds:starting', () => {
@@ -235,21 +308,13 @@ function registerEvents() {
 
     EventsOn('amds:start_failed', () => {
         if (currentState !== 'error') {
-            setState('error', {
-                code: 'AMDS_START_FAILED',
-                message: t('error.amds_desc'),
-                recoverable: true,
-            });
+            setState('error', { code: 'AMDS_START_FAILED', recoverable: true });
         }
     });
 
     EventsOn('amds:timeout', () => {
         if (currentState !== 'error') {
-            setState('error', {
-                code: 'AMDS_TIMEOUT',
-                message: t('error.AMDS_TIMEOUT'),
-                recoverable: true,
-            });
+            setState('error', { code: 'AMDS_TIMEOUT', recoverable: true });
         }
     });
 
@@ -425,6 +490,74 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
     document.getElementById('btn-report-issue')?.addEventListener('click', () => {
         OpenURL('https://github.com/diablofong/ivault/issues/new');
     });
+
+    // I: AMDS 啟動按鈕
+    document.getElementById('btn-launch-amds')?.addEventListener('click', () => {
+        LaunchAppleDevices();
+    });
+
+    // AA: iTunes 警告關閉
+    document.getElementById('btn-dismiss-itunes')?.addEventListener('click', () => {
+        const w = document.getElementById('itunes-warning');
+        if (w) w.style.display = 'none';
+    });
+
+    // H: Driver banner 安裝按鈕
+    document.getElementById('btn-driver-banner-install')?.addEventListener('click', () => {
+        resetDriverMissingView();
+        setState('driver-missing');
+    });
+
+    // 自動備份倒數按鈕
+    document.getElementById('btn-auto-now')?.addEventListener('click', () => {
+        clearAutoCountdown();
+        onStartBackup();
+    });
+    document.getElementById('btn-auto-snooze')?.addEventListener('click', () => {
+        clearAutoCountdown();
+        autoSnoozeActive = true;
+        if (autoSnoozeTimer) clearTimeout(autoSnoozeTimer);
+        autoSnoozeTimer = setTimeout(() => {
+            autoSnoozeActive = false;
+            if (currentState === 'ready') startAutoCountdown();
+        }, 15 * 60 * 1000);
+    });
+    document.getElementById('btn-auto-skip')?.addEventListener('click', () => {
+        clearAutoCountdown();
+        autoSnoozeActive = true; // 本次連線不再自動啟動
+    });
+
+    // X: Onboarding 步驟按鈕
+    document.getElementById('btn-onboard-s1-next')?.addEventListener('click', () => {
+        goToOnboardStep(2);
+    });
+    document.getElementById('btn-onboard-s1-install')?.addEventListener('click', () => {
+        InstallAppleDevices();
+        goToOnboardStep(2);
+    });
+    document.getElementById('btn-onboard-s1-skip')?.addEventListener('click', () => {
+        goToOnboardStep(2);
+    });
+    document.getElementById('btn-onboard-choose-path')?.addEventListener('click', async () => {
+        try {
+            const path = await SelectBackupFolder();
+            if (!path) return;
+            selectedPath = path;
+            setEl('onboard-path', path);
+            const el = document.getElementById('onboard-path');
+            if (el) el.title = path;
+        } catch (e) {}
+    });
+    document.getElementById('btn-onboard-s2-next')?.addEventListener('click', () => {
+        goToOnboardStep(3);
+    });
+    document.getElementById('btn-onboard-autostart-yes')?.addEventListener('click', async () => {
+        try { await SetAutostart(true); } catch (e) {}
+        await completeOnboarding();
+    });
+    document.getElementById('btn-onboard-autostart-no')?.addEventListener('click', async () => {
+        await completeOnboarding();
+    });
 }
 
 // ============================================================
@@ -566,7 +699,26 @@ async function onEnterReady(info) {
         incrementalHint.style.display = (appConfig?.history?.length > 0) ? '' : 'none';
     }
 
-    try { CheckBackupPath(); } catch (e) {}
+    try { CheckBackupPath(selectedPath || ''); } catch (e) {}
+
+    // R/S: 最大單檔 + 新檔數（用 GetBackupEstimate 取代 EstimateBackupSize）
+    if (info.udid && selectedPath) estimateFull(info.udid, selectedPath);
+
+    // AA: iTunes 衝突警告
+    if (platformInfo?.os === 'windows') {
+        try {
+            const itunesRunning = await CheckITunesRunning();
+            const w = document.getElementById('itunes-warning');
+            if (w) w.style.display = itunesRunning ? '' : 'none';
+        } catch (e) {}
+    }
+
+    // 自動備份規則：回訪用戶從 device-found 進入 ready → 3 秒倒數
+    const isReturning = (appConfig?.history?.length ?? 0) > 0 && !appConfig?.lastInterrupted;
+    const fromDevice = previousState === 'device-found';
+    if (isReturning && fromDevice && !autoSnoozeActive) {
+        startAutoCountdown();
+    }
 }
 
 // updateLastBackupRow 以正確的優先順序更新 READY 頁的 last-backup-row：
@@ -719,6 +871,16 @@ function onEnterDone(result) {
             : `${fmt(unknownCount)} ${t('done.unknown_date_hint')}`;
     }
 
+    // L: 備份路徑（三層設計）
+    const donePathRow = document.getElementById('done-path-row');
+    const donePath = document.getElementById('done-path');
+    if (result.backupPath) {
+        if (donePathRow) donePathRow.style.display = '';
+        if (donePath) { donePath.textContent = result.backupPath; donePath.title = result.backupPath; }
+    } else {
+        if (donePathRow) donePathRow.style.display = 'none';
+    }
+
     // Windows HEIC 提示
     const heicHint = document.getElementById('heic-hint');
     if (heicHint) {
@@ -763,11 +925,13 @@ function onEnterError(err) {
     const retryBtn = document.getElementById('btn-retry');
     const issueBtn = document.getElementById('btn-report-issue');
     const relocateBtn = document.getElementById('btn-relocate-folder');
+    const amdsBtn = document.getElementById('btn-launch-amds');
 
     // 重設按鈕狀態
     if (retryBtn) { retryBtn.style.display = ''; retryBtn.textContent = t('error.retry'); }
     if (issueBtn) issueBtn.style.display = 'none';
     if (relocateBtn) relocateBtn.style.display = 'none';
+    if (amdsBtn) amdsBtn.style.display = 'none';
 
     // BACKUP_PATH_MISSING → 顯示「選擇新資料夾」按鈕
     if (code === 'BACKUP_PATH_MISSING') {
@@ -790,11 +954,12 @@ function onEnterError(err) {
         return;
     }
 
-    // AMDS_START_FAILED → 專屬標題
-    if (code === 'AMDS_START_FAILED') {
+    // AMDS 失敗：I 差異化引導（未裝 vs 未啟動）
+    if (code === 'AMDS_START_FAILED' || code === 'AMDS_TIMEOUT') {
         if (titleEl) titleEl.textContent = t('error.amds_title');
         setEl('error-message', t('error.amds_desc'));
         if (retryBtn) retryBtn.textContent = t('error.amds_retry');
+        if (amdsBtn) { amdsBtn.style.display = ''; amdsBtn.textContent = t('error.amds_launch_btn'); }
         return;
     }
 
@@ -810,6 +975,116 @@ function onEnterError(err) {
 }
 
 // ============================================================
+// H: Driver banner 控制
+// ============================================================
+
+function setDriverBanner(show) {
+    const el = document.getElementById('driver-banner');
+    if (el) el.style.display = show ? '' : 'none';
+}
+
+// ============================================================
+// X: Onboarding（首次啟動引導）
+// ============================================================
+
+async function onEnterOnboarding() {
+    const installed = platformInfo?.appleDevicesInstalled ?? false;
+
+    // 顯示步驟 1
+    goToOnboardStep(1);
+
+    if (installed) {
+        document.getElementById('onboard-s1-ok').style.display = '';
+        document.getElementById('onboard-s1-missing').style.display = 'none';
+    } else {
+        document.getElementById('onboard-s1-ok').style.display = 'none';
+        document.getElementById('onboard-s1-missing').style.display = '';
+    }
+
+    // 預設路徑（步驟 2 用）
+    if (!selectedPath) {
+        try { selectedPath = await GetDefaultBackupPath(); } catch (e) {}
+    }
+    setEl('onboard-path', selectedPath || '-');
+    const pathEl = document.getElementById('onboard-path');
+    if (pathEl && selectedPath) pathEl.title = selectedPath;
+}
+
+function goToOnboardStep(step) {
+    document.getElementById('onboard-step-1').style.display = step === 1 ? '' : 'none';
+    document.getElementById('onboard-step-2').style.display = step === 2 ? '' : 'none';
+    document.getElementById('onboard-step-3').style.display = step === 3 ? '' : 'none';
+}
+
+async function completeOnboarding() {
+    if (appConfig) {
+        appConfig.onboardingDone = true;
+        try { await SaveConfig(appConfig); } catch (e) {}
+    }
+    // Apple Devices 確認
+    let installed = true;
+    if (platformInfo?.os === 'windows') {
+        try { installed = await CheckAppleDevicesInstalled(); } catch (e) {}
+        if (!installed) {
+            setDriverBanner(true);
+            setState('idle');
+            return;
+        }
+    }
+    // 看有無裝置
+    try {
+        const dev = await GetConnectedDevice();
+        if (dev && dev.udid) {
+            currentDevice = dev;
+            setState('device-found', dev);
+        } else {
+            setState('idle');
+        }
+    } catch (e) {
+        setState('idle');
+    }
+}
+
+// ============================================================
+// 自動備份倒數（自動備份規則）
+// ============================================================
+
+function startAutoCountdown() {
+    let seconds = 3;
+    const bar = document.getElementById('auto-backup-bar');
+    const msgEl = document.getElementById('auto-backup-msg');
+    if (!bar) return;
+
+    const update = () => {
+        if (!msgEl) return;
+        msgEl.textContent = getLang() === 'zh-TW'
+            ? `${seconds} 秒後自動開始...`
+            : `Starting in ${seconds}s...`;
+    };
+
+    bar.style.display = '';
+    update();
+
+    autoCountdownTimer = setInterval(() => {
+        seconds--;
+        update();
+        if (seconds <= 0) {
+            clearAutoCountdown();
+            if (currentState === 'ready') onStartBackup();
+        }
+    }, 1000);
+}
+
+function clearAutoCountdown() {
+    if (autoCountdownTimer) {
+        clearInterval(autoCountdownTimer);
+        autoCountdownTimer = null;
+    }
+    const bar = document.getElementById('auto-backup-bar');
+    if (bar) bar.style.display = 'none';
+}
+
+// ============================================================
 // 進度更新（P1-2 故事感）
 // ============================================================
 
@@ -822,11 +1097,14 @@ function updateProgressUI(p) {
     setEl('backup-speed', p.speedBps > 0 ? formatBytes(p.speedBps) + '/s' : '-');
     setEl('backup-eta', p.eta || '-');
 
-    // 故事感進度文字
+    // D: 故事感進度文字（依階段）
     const storyEl = document.getElementById('backup-current-story');
     if (storyEl) {
+        const percent = p.percent ?? 0;
         if (p.phase === 'scanning') {
             storyEl.textContent = t('backup.scanning');
+        } else if (percent >= 85) {
+            storyEl.textContent = t('backup.nearly_done');
         } else if (p.currentMonth && p.totalFiles > 0) {
             const [year, month] = p.currentMonth.split('-');
             const lang = getLang();
@@ -926,6 +1204,42 @@ async function estimateSize(udid, path) {
     } catch (e) {
         setEl('estimate-size', '-');
     }
+}
+
+// R/S: 完整估算（含最大單檔）
+async function estimateFull(udid, path) {
+    try {
+        const est = await GetBackupEstimate(udid, path);
+        setEl('estimate-size', formatBytes(est.totalBytes));
+        const show = est.maxBytes > 0;
+        setEl('max-file-size', show ? formatBytes(est.maxBytes) : '-');
+        const wrap = document.getElementById('max-file-wrap');
+        const sep  = document.getElementById('max-file-sep');
+        if (wrap) wrap.style.display = show ? '' : 'none';
+        if (sep)  sep.style.display  = show ? '' : 'none';
+    } catch (e) {
+        setEl('estimate-size', '-');
+    }
+}
+
+// AC: 長備份心理安撫計時器
+function startComfortTimer() {
+    const messages = ['comfort_1', 'comfort_2', 'comfort_3', 'comfort_4'];
+    let idx = 0;
+    const hintEl = document.getElementById('backup-current-story');
+    comfortTimer = setInterval(() => {
+        if (currentState !== 'backing-up') {
+            clearInterval(comfortTimer);
+            comfortTimer = null;
+            return;
+        }
+        const elapsed = (Date.now() - backupStartTime) / 1000;
+        // 2 分鐘後開始顯示安撫文案（不覆蓋掃描中文字）
+        if (elapsed > 120 && hintEl) {
+            hintEl.textContent = t(`backup.${messages[idx % messages.length]}`);
+            idx++;
+        }
+    }, 120000); // 每 2 分鐘換一條
 }
 
 function resetDriverMissingView() {

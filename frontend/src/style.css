@@ -358,6 +358,196 @@ body.os-windows .card { border-radius: 12px; }
     line-height: 1.5;
 }
 
+/* ── Apple Devices 早期警告 banner（IDLE 頁，H） ─────────── */
+.driver-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    background: oklch(0.78 0.16 60 / 0.12);
+    border: 1px solid oklch(0.78 0.16 60 / 0.35);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.driver-banner-text {
+    flex: 1;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.driver-banner-btn {
+    flex-shrink: 0;
+    background: oklch(0.78 0.16 60);
+    color: oklch(0.15 0 0);
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 150ms;
+}
+.driver-banner-btn:hover { opacity: 0.85; }
+
+/* ── 首次引導（ONBOARDING，X） ──────────────────────────── */
+.onboarding-step { display: flex; flex-direction: column; gap: 0; }
+.onboarding-step > * + * { margin-top: 12px; }
+
+.onboard-step-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.onboard-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px;
+    background: oklch(0.78 0.18 150 / 0.10);
+    border: 1px solid oklch(0.78 0.18 150 / 0.30);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--success);
+    font-weight: 600;
+}
+
+.onboard-check-icon { font-size: 16px; }
+
+.onboard-autostart-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ── 自動備份倒數（READY 頁，自動備份規則） ─────────────── */
+.auto-backup-bar {
+    background: var(--bg-surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.auto-backup-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-auto-now {
+    background: var(--accent-solid);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 150ms;
+}
+.btn-auto-now:hover { opacity: 0.85; }
+
+.btn-auto-snooze,
+.btn-auto-skip {
+    background: var(--bg-surface-3);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 150ms;
+}
+.btn-auto-snooze:hover,
+.btn-auto-skip:hover { background: var(--bg-surface-2); }
+
+/* ── IDLE 隱私標注（K） ─────────────────────────────────── */
+.idle-privacy-note {
+    font-size: 11px;
+    color: var(--text-quaternary);
+    text-align: center;
+    margin-top: -4px;
+}
+
+/* ── READY：iTunes 警告（AA） ───────────────────────────── */
+.itunes-warning {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 14px;
+    background: oklch(0.72 0.18 25 / 0.10);
+    border: 1px solid oklch(0.72 0.18 25 / 0.30);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--danger);
+}
+
+.warning-dismiss {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+}
+
+/* ── READY：iCloud 最佳化提示（Q） ─────────────────────── */
+.icloud-hint {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-align: center;
+    padding: 6px 10px;
+    background: var(--bg-surface);
+    border-radius: 6px;
+    line-height: 1.5;
+}
+
+/* ── DONE：備份路徑（L） ────────────────────────────────── */
+.done-path-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 0 4px;
+}
+
+.done-path-label {
+    flex-shrink: 0;
+    color: var(--text-tertiary);
+}
+
+.done-path-value {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+}
+
+/* ── 信任確認動畫（C） ──────────────────────────────────── */
+.btn-primary.trust-confirmed {
+    background: var(--success) !important;
+    color: #fff !important;
+    pointer-events: none;
+    transition: background 200ms, color 200ms;
+}
+
 /* ── AMDS 啟動提示（IDLE 頁，Windows only） ──────────────── */
 .amds-status {
     font-size: 12px;

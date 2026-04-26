@@ -9,6 +9,8 @@ export function CancelBackup():Promise<void>;
 
 export function CheckAppleDevicesInstalled():Promise<boolean>;
 
+export function CheckBackupPath(arg1:string):Promise<void>;
+
 export function CheckTrustStatus(arg1:string):Promise<boolean>;
 
 export function EstimateBackupSize(arg1:string,arg2:string):Promise<number>;
@@ -44,3 +46,13 @@ export function SelectBackupFolder():Promise<string>;
 export function StartBackup(arg1:backup.BackupConfig):Promise<void>;
 
 export function TriggerTrustCheck(arg1:string):Promise<boolean>;
+
+export function GetAutostart():Promise<boolean>;
+
+export function SetAutostart(arg1:boolean):Promise<void>;
+
+export function LaunchAppleDevices():Promise<void>;
+
+export function CheckITunesRunning():Promise<boolean>;
+
+export function GetBackupEstimate(arg1:string,arg2:string):Promise<backup.BackupEstimate>;

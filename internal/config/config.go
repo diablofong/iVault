@@ -17,6 +17,7 @@ type AppConfig struct {
 	InterruptedDone  int            `json:"interruptedDone"`
 	InterruptedTotal int            `json:"interruptedTotal"`
 	FirstBackupDone  bool           `json:"firstBackupDone"`
+	OnboardingDone   bool           `json:"onboardingDone"`
 }
 
 // BackupRecord 歷史備份紀錄

@@ -10,8 +10,8 @@ export function CheckAppleDevicesInstalled() {
   return window['go']['main']['App']['CheckAppleDevicesInstalled']();
 }
 
-export function CheckBackupPath() {
-  return window['go']['main']['App']['CheckBackupPath']();
+export function CheckBackupPath(arg1) {
+  return window['go']['main']['App']['CheckBackupPath'](arg1);
 }
 
 export function CheckTrustStatus(arg1) {
@@ -84,4 +84,24 @@ export function StartBackup(arg1) {
 
 export function TriggerTrustCheck(arg1) {
   return window['go']['main']['App']['TriggerTrustCheck'](arg1);
+}
+
+export function GetAutostart() {
+  return window['go']['main']['App']['GetAutostart']();
+}
+
+export function SetAutostart(arg1) {
+  return window['go']['main']['App']['SetAutostart'](arg1);
+}
+
+export function LaunchAppleDevices() {
+  return window['go']['main']['App']['LaunchAppleDevices']();
+}
+
+export function CheckITunesRunning() {
+  return window['go']['main']['App']['CheckITunesRunning']();
+}
+
+export function GetBackupEstimate(arg1, arg2) {
+  return window['go']['main']['App']['GetBackupEstimate'](arg1, arg2);
 }

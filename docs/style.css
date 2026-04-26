@@ -597,6 +597,103 @@ nav {
     color: var(--text-tertiary);
 }
 
+/* ── System Requirements ────────────────────────────────────── */
+#requirements { padding: 60px 0; }
+
+.req-table-wrap { overflow-x: auto; }
+
+.req-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.req-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.6;
+}
+
+.req-table td:first-child {
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    width: 130px;
+}
+
+/* ── FAQ ──────────────────────────────────────────────────────── */
+#faq { padding: 60px 0; }
+
+.faq-list { display: flex; flex-direction: column; gap: 4px; max-width: 680px; margin: 0 auto; }
+
+.faq-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+
+.faq-item[open] { border-color: var(--border-strong); }
+
+.faq-item summary {
+    padding: 14px 18px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-primary);
+    user-select: none;
+}
+
+.faq-item summary::after {
+    content: '+';
+    font-size: 18px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
+.faq-item[open] summary::after { content: '−'; }
+
+.faq-item p {
+    padding: 0 18px 14px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin: 0;
+}
+
+.faq-item p a { color: var(--accent-solid); }
+
+/* ── Ko-fi 贊助 ──────────────────────────────────────────────── */
+.kofi-section {
+    margin-top: 28px;
+    text-align: center;
+}
+
+.kofi-note {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+}
+
+.kofi-btn {
+    display: inline-block;
+    padding: 10px 22px;
+    background: #FF5E5B;
+    color: #fff;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: opacity 0.2s;
+}
+
+.kofi-btn:hover { opacity: 0.85; }
+
 /* ── Footer ─────────────────────────────────────────────────── */
 footer {
     border-top: 1px solid var(--border);

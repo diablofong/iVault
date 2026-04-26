@@ -75,6 +75,7 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.trustCancel != nil {
 		a.trustCancel()
 	}
+	platform.AllowSleep()
 }
 
 // ============================================================
@@ -141,6 +142,46 @@ func (a *App) CheckAppleDevicesInstalled() bool {
 	return platform.RecheckAppleDevices()
 }
 
+// SetAutostart Windows：設定登錄開機自動啟動
+func (a *App) SetAutostart(enabled bool) error {
+	return platform.SetAutostart(enabled)
+}
+
+// GetAutostart Windows：查詢是否已設定開機自動啟動
+func (a *App) GetAutostart() bool {
+	return platform.GetAutostart()
+}
+
+// LaunchAppleDevices Windows：直接啟動 Apple Devices App（不透過 Store）
+func (a *App) LaunchAppleDevices() {
+	go platform.LaunchAppleDevices()
+}
+
+// CheckITunesRunning Windows：偵測 iTunes 是否正在執行
+func (a *App) CheckITunesRunning() bool {
+	return platform.IsITunesRunning()
+}
+
+// GetBackupEstimate 取得備份估算（總大小、最大單檔、新檔數）
+func (a *App) GetBackupEstimate(udid string, backupPath string) (backup.BackupEstimate, error) {
+	photos, err := device.ScanDCIM(udid)
+	if err != nil {
+		return backup.BackupEstimate{}, err
+	}
+	m := backup.LoadOrCreateManifest(backupPath, udid, "")
+	var est backup.BackupEstimate
+	for _, p := range photos {
+		if !m.IsBackedUp(p) {
+			est.TotalBytes += p.Size
+			est.FileCount++
+			if p.Size > est.MaxBytes {
+				est.MaxBytes = p.Size
+			}
+		}
+	}
+	return est, nil
+}
+
 // InstallAppleDevices Windows 專用：開啟 Microsoft Store Apple Devices 頁面
 // 安裝由使用者在 Store 完成後手動點「重新偵測」，不依賴自動偵測推進 UX。
 func (a *App) InstallAppleDevices() {
@@ -176,17 +217,20 @@ func (a *App) GetDefaultBackupPath() string {
 	return platform.GetDefaultBackupPath()
 }
 
-// CheckBackupPath 進入 READY 頁前呼叫：確認上次備份路徑是否仍有效。
-// 若路徑記錄存在但磁碟上找不到（外接硬碟未插），emit backup:path-missing。
-// 設計決策：不在 startup 時跳 error，改由前端進入 READY 時主動呼叫。
-func (a *App) CheckBackupPath() {
-	cfg := a.configMgr.Get()
-	if cfg.LastBackupPath == "" {
+// CheckBackupPath 進入 READY 頁前呼叫：確認備份路徑是否仍有效。
+// path 為前端當前 selectedPath；空字串時 fallback 到 config 的 LastBackupPath。
+// 若路徑存在但磁碟上找不到（外接硬碟未插），emit backup:path-missing。
+func (a *App) CheckBackupPath(path string) {
+	checkPath := path
+	if checkPath == "" {
+		checkPath = a.configMgr.Get().LastBackupPath
+	}
+	if checkPath == "" {
 		return
 	}
-	if _, err := os.Stat(cfg.LastBackupPath); err != nil {
+	if _, err := os.Stat(checkPath); err != nil {
 		wailsRuntime.EventsEmit(a.ctx, "backup:path-missing", map[string]any{
-			"path": cfg.LastBackupPath,
+			"path": checkPath,
 		})
 	}
 }
@@ -232,12 +276,15 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 	current.LastBackupPath = cfg.BackupPath
 	_ = a.configMgr.Save(current)
 
+	platform.PreventSleep() // AD: 備份中阻止系統睡眠
+
 	emitFn := func(event string, data any) {
 		wailsRuntime.EventsEmit(a.ctx, event, data)
 	}
 	engine := backup.NewEngine(cfg, emitFn)
 
 	go func() {
+		defer platform.AllowSleep() // AD: 備份結束恢復睡眠
 		result, err := engine.Run(ctx)
 		if err != nil && err != context.Canceled {
 			// 記錄中斷狀態
@@ -290,6 +337,11 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 				TotalBytes:  result.TotalBytes,
 				Duration:    result.Duration,
 			})
+			// P: Toast 通知（非同步，不阻塞 event emit）
+			go platform.ShowToast(
+				"備份完成",
+				fmt.Sprintf("已備份 %d 張照片、%d 段影片", result.PhotosCount, result.VideosCount),
+			)
 			wailsRuntime.EventsEmit(a.ctx, "backup:complete", result)
 
 			// 若勾選了「轉存 JPEG」且備份結果含 HEIC，啟動轉檔（綁定 cancel context）

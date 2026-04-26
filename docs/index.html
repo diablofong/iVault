@@ -248,6 +248,64 @@
     </div>
 </section>
 
+<!-- System Requirements -->
+<section id="requirements">
+    <div class="container">
+        <p class="section-label" data-i18n="req.title">Requirements</p>
+        <div class="req-table-wrap">
+            <table class="req-table">
+                <tbody>
+                    <tr>
+                        <td data-i18n="req.os">OS</td>
+                        <td>Windows 10 / 11 (64-bit)</td>
+                    </tr>
+                    <tr>
+                        <td data-i18n="req.driver">Driver</td>
+                        <td><a href="https://apps.microsoft.com/detail/9NP83LWLPZ9K" target="_blank" rel="noopener">Apple Devices</a> <span data-i18n="req.driver.note">(free, Microsoft Store)</span></td>
+                    </tr>
+                    <tr>
+                        <td data-i18n="req.runtime">Runtime</td>
+                        <td>WebView2 <span data-i18n="req.runtime.note">(built into Windows 11; Windows 10 may need separate install)</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+    <div class="container">
+        <p class="section-label" data-i18n="faq.title">FAQ</p>
+        <div class="faq-list">
+            <details class="faq-item">
+                <summary data-i18n="faq.q1">Do I need iTunes?</summary>
+                <p data-i18n="faq.a1">No. iVault uses Apple Devices — a newer, lighter app from Apple. iTunes can actually conflict with iVault, so close it if it's running.</p>
+            </details>
+            <details class="faq-item">
+                <summary data-i18n="faq.q2">Where are my photos saved?</summary>
+                <p data-i18n="faq.a2">To any folder you choose — default is the largest available drive. Photos are organized into YYYY-MM/ subfolders by shoot date.</p>
+            </details>
+            <details class="faq-item">
+                <summary data-i18n="faq.q3">What if iCloud Optimize Storage is on?</summary>
+                <p data-i18n="faq.a3">iCloud Optimize Storage keeps only thumbnails on the iPhone locally. iVault will back those up. For full-resolution originals, disable Optimize Storage in iPhone Settings → Photos first.</p>
+            </details>
+            <details class="faq-item">
+                <summary data-i18n="faq.q4">What if my cable comes loose mid-backup?</summary>
+                <p data-i18n="faq.a4">iVault saves progress and resumes exactly where it left off — no duplicates, no starting over.</p>
+            </details>
+            <details class="faq-item">
+                <summary data-i18n="faq.q5">Is my data private?</summary>
+                <p data-i18n="faq.a5">Yes. iVault transfers photos locally over USB and collects no data whatsoever. No account, no analytics, no telemetry. See the <a href="privacy.html" data-i18n="faq.privacy_link">privacy policy</a>.</p>
+            </details>
+            <details class="faq-item">
+                <summary data-i18n="faq.q6">Why does Windows show a security warning?</summary>
+                <p data-i18n="faq.a6">iVault doesn't have paid code signing. Click "More info" → "Run anyway". The source code is fully open on GitHub for anyone to audit.</p>
+            </details>
+        </div>
+    </div>
+</section>
+
 <!-- Download -->
 <section id="download">
     <div class="container">
@@ -268,6 +326,13 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
             <span data-i18n="download.source">View source on GitHub</span>
         </a>
+
+        <!-- LB-5: Ko-fi 贊助（URL 待填入） -->
+        <div class="kofi-section">
+            <p class="kofi-note" data-i18n="kofi.note">iVault is free to use. If it saves you time, consider buying me a coffee.</p>
+            <!-- Ko-fi 按鈕（URL 取得後填入 href） -->
+            <a class="kofi-btn" href="https://ko-fi.com" target="_blank" rel="noopener" data-i18n="kofi.btn">☕ Support on Ko-fi</a>
+        </div>
     </div>
 </section>
 

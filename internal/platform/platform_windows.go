@@ -319,6 +319,80 @@ func killAppleDevicesUI() {
 	_ = hiddenCmd("taskkill", "/F", "/IM", "AppleDevices.exe").Run()
 }
 
+// ── 系統睡眠控制（AD：備份中阻止睡眠）────────────────────────
+var setThreadExecutionState = kernel32.NewProc("SetThreadExecutionState")
+
+const (
+	esSystemRequired = 0x00000001
+	esContinuous     = 0x80000000
+)
+
+// PreventSleep 備份中阻止系統進入睡眠
+func PreventSleep() {
+	setThreadExecutionState.Call(uintptr(esContinuous | esSystemRequired))
+}
+
+// AllowSleep 恢復系統睡眠策略
+func AllowSleep() {
+	setThreadExecutionState.Call(uintptr(esContinuous))
+}
+
+// ── 開機自動啟動（O）────────────────────────────────────────
+const autostartRegKey = `HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run`
+
+// SetAutostart 設定或移除開機自動啟動登錄值
+func SetAutostart(enabled bool) error {
+	if !enabled {
+		_ = hiddenCmd("reg", "delete", autostartRegKey, "/v", "iVault", "/f").Run()
+		return nil
+	}
+	exePath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return hiddenCmd("reg", "add", autostartRegKey, "/v", "iVault", "/t", "REG_SZ", "/d", exePath, "/f").Run()
+}
+
+// GetAutostart 查詢是否已設定開機自動啟動
+func GetAutostart() bool {
+	out, err := runHiddenOutput(hiddenCmdTimeout, "reg", "query", autostartRegKey, "/v", "iVault")
+	return err == nil && strings.Contains(string(out), "iVault")
+}
+
+// ── Toast 通知（P）──────────────────────────────────────────
+
+// ShowToast 發送 Windows Toast 通知
+func ShowToast(title, body string) {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;")
+	t, b := r.Replace(title), r.Replace(body)
+	script := `[void][Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];` +
+		`[void][Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime];` +
+		`$x=[Windows.Data.Xml.Dom.XmlDocument]::new();` +
+		`$x.LoadXml('<toast><visual><binding template="ToastGeneric"><text>` + t + `</text><text>` + b + `</text></binding></visual></toast>');` +
+		`[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('iVault').Show([Windows.UI.Notifications.ToastNotification]::new($x))`
+	_ = hiddenCmd("powershell", "-NoProfile", "-NonInteractive", "-Command", script).Run()
+}
+
+// ── iTunes 衝突偵測（AA）────────────────────────────────────
+
+// IsITunesRunning 偵測 iTunes 是否正在執行（可能干擾 AFC 通訊）
+func IsITunesRunning() bool {
+	out, err := runHiddenOutput(hiddenCmdTimeout, "tasklist",
+		"/FI", "IMAGENAME eq iTunes.exe", "/NH", "/FO", "CSV")
+	return err == nil && strings.Contains(string(out), "iTunes.exe")
+}
+
+// ── Apple Devices 啟動（I）──────────────────────────────────
+
+// LaunchAppleDevices 直接啟動 Apple Devices App（不透過 Store）
+func LaunchAppleDevices() {
+	aumid, err := findAppleDevicesAUMID()
+	if err != nil {
+		return
+	}
+	_ = hiddenCmd("explorer.exe", "shell:AppsFolder\\"+aumid).Start()
+}
+
 func driveExists(root string) bool {
 	ptr, _ := syscall.UTF16PtrFromString(root)
 	driveType, _, _ := getDriveTypeW.Call(uintptr(unsafe.Pointer(ptr)))

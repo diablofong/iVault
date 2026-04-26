@@ -48,3 +48,10 @@ type FailedFile struct {
 	FileName string `json:"fileName"`
 	Reason   string `json:"reason"` // 人類可讀錯誤原因（中文）
 }
+
+// BackupEstimate 備份估算（未備份的新檔統計）
+type BackupEstimate struct {
+	TotalBytes int64 `json:"totalBytes"`
+	MaxBytes   int64 `json:"maxBytes"`
+	FileCount  int   `json:"fileCount"`
+}

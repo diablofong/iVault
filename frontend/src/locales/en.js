@@ -3,6 +3,7 @@ export default {
     'idle.first.title':         'Back up your iPhone photos and videos to this computer.',
     'idle.first.cta':           'Connect iPhone with a USB cable to get started',
     'idle.first.tagline':       'Offline only · Free & open source · Original quality',
+    'idle.first.privacy':       'No data collected · No account required',
 
     'idle.returning.title':     'Welcome back',
     'idle.returning.cta':       'Connect iPhone with a USB cable to continue',
@@ -13,7 +14,31 @@ export default {
 
     'idle.amds_starting':       'Starting Apple Devices service, the app may briefly appear then close...',
     'idle.update.prefix':       'New version',
-    'idle.update.suffix':       'available →',
+    'idle.update.suffix':       'available — your backup is safe →',
+
+    // DRIVER BANNER
+    'banner.driver_missing':    'Apple Devices is required to connect your iPhone',
+    'banner.install':           'Install',
+
+    // ONBOARDING
+    'onboard.step_1_of_3':      '1 / 3',
+    'onboard.step_2_of_3':      '2 / 3',
+    'onboard.step_3_of_3':      '3 / 3',
+    'onboard.next':             'Continue',
+    'onboard.s1.title':         'One thing first',
+    'onboard.s1.desc':          'iVault needs Apple Devices (free) to read photos from your iPhone',
+    'onboard.s1.installed':     'Apple Devices is installed',
+    'onboard.s1.skip':          'I\'ll do this later',
+    'onboard.s2.title':         'Where should we back up?',
+    'onboard.s3.title':         'Start automatically at login?',
+    'onboard.s3.desc':          'Plug in your iPhone and backup starts automatically — no need to open iVault',
+    'onboard.s3.yes':           'Yes, start automatically',
+    'onboard.s3.no':            'No, I\'ll open it myself',
+
+    // AUTO BACKUP COUNTDOWN
+    'ready.auto_now':           'Now',
+    'ready.auto_snooze':        'In 15 min',
+    'ready.auto_skip':          'Skip',
 
     // DEVICE_FOUND
     'device.reading': 'Verifying device...',
@@ -33,19 +58,19 @@ export default {
     'trust.deny':          'Don\'t Trust',
     'trust.allow':         'Trust',
 
-    // DRIVER_MISSING
-    'driver.title':        'Install Apple Devices first (free)',
-    'driver.subtitle':     'Official Apple app · One-time setup',
-    'driver.open_store':   'Install Now',
+    // DRIVER_MISSING（J rewrite）
+    'driver.title':        'Let Windows see your iPhone',
+    'driver.subtitle':     'Free official Apple app — install once, works forever',
+    'driver.open_store':   'Install Free App',
     'driver.pending_title':'Microsoft Store opened',
-    'driver.hint':         'After installation, click the button below to continue',
-    'driver.recheck':      'I\'ve installed it — Re-detect',
-    'driver.recheck_fail': 'Not detected yet. Please confirm Apple Devices is fully installed.',
-    'driver.success':      'Installation complete!',
-    'driver.success_hint': 'Please unplug and reconnect your iPhone to continue',
+    'driver.hint':         'After installation, click below to continue',
+    'driver.recheck':      'Done installing — continue',
+    'driver.recheck_fail': 'Not detected yet. Please confirm the installation finished.',
+    'driver.success':      'All set!',
+    'driver.success_hint': 'Reconnect your iPhone to start backing up',
     'driver.replug_done':  'Continue',
-    'driver.faq_toggle':   'Why is this needed?',
-    'driver.faq_a':        'Apple Devices is a free official driver from Apple that lets Windows recognize your iPhone. Completely safe — iVault never accesses your Apple account.',
+    'driver.faq_toggle':   'Why do I need this?',
+    'driver.faq_a':        'This free app (available in the Microsoft Store) lets Windows read photos directly from your iPhone. It\'s made by Apple, completely safe, and iVault never touches your Apple ID or iCloud.',
 
     // READY
     'ready.incremental_hint': 'iVault only copies new photos — previously backed up files are skipped.',
@@ -58,17 +83,28 @@ export default {
     'ready.files_count':    'photos',
     'ready.disk_free':      'available',
     'ready.estimate_label': 'Estimated',
+    'ready.max_file_label': 'Largest file',
+    'ready.icloud_hint':    'If iCloud Optimize Storage is on, some photos may only exist as thumbnails. Consider downloading originals first in iPhone Settings.',
     'backup.eta_label':     'Remaining',
     'error.unknown_fallback': 'An unexpected error occurred. Please try again.',
 
+    // WARNINGS
+    'warning.itunes':   'iTunes is running and may conflict with iPhone connection. Consider closing iTunes first.',
+    'warning.dismiss':  'Got it',
+
     // BACKING_UP
-    'backup.minimize_hint': 'You can minimize — backup continues in the background',
-    'backup.title':    'Backing Up',
-    'backup.scanning': 'Scanning photo library...',
-    'backup.month':    'Backing up memories from {month}/{year} · {cur} of {total}',
-    'backup.nodate':   'Backing up file {cur} of {total}',
-    'backup.cancel':   'Cancel',
-    'backup.skipped':  '{n} already backed up, skipped',
+    'backup.minimize_hint':  'You can minimize — backup continues in the background',
+    'backup.title':          'Backing Up',
+    'backup.scanning':       'Reading photo library...',
+    'backup.nearly_done':    'Almost done, just a moment...',
+    'backup.month':          'Backing up memories from {month}/{year} · {cur} of {total}',
+    'backup.nodate':         'Backing up file {cur} of {total}',
+    'backup.cancel':         'Cancel',
+    'backup.skipped':        '{n} already backed up, skipped',
+    'backup.comfort_1':      'Backup is running — feel free to do other things',
+    'backup.comfort_2':      'Transferring photos one by one...',
+    'backup.comfort_3':      'A large library takes time — thank you for waiting',
+    'backup.comfort_4':      'Almost there — please keep your iPhone connected',
 
     // DONE — two variants
     'done.first.title':      'Your {photos} photos and {videos} videos are safe',
@@ -87,6 +123,7 @@ export default {
     'done.label_new':        'New',
     'done.label_skip':       'Skipped',
     'done.label_fail':       'Failed',
+    'done.saved_to':         'Saved to',
     'done.open_folder':      'Open Backup Folder →',
     'done.back':             'Done',
     'done.failed_toggle':    'View',
@@ -99,7 +136,8 @@ export default {
     'error.retry':               'Try Again',
     'error.back':                'Back to Home',
     'error.report':              'Report Issue →',
-    'error.DEVICE_DISCONNECTED': 'iPhone was disconnected. Plug it back in to continue.',
+    'error.DEVICE_DISCONNECTED': 'iPhone disconnected (battery died or cable came loose). Your backup is paused — reconnect to resume.',
+    'error.PERMISSION_DENIED':   'Cannot write to the backup folder. Antivirus software may be blocking it — try disabling it temporarily, or choose a different folder.',
     'error.AMDS_TIMEOUT':        'Could not start Apple Devices service. Try unplugging and reconnecting your iPhone.',
     'error.DISK_FULL':           'Not enough disk space. Please free up space and try again.',
     'error.TRUST_TIMEOUT':       'iPhone did not respond to the trust request. Try unplugging and reconnecting.',
@@ -108,8 +146,10 @@ export default {
     'error.BACKUP_PATH_MISSING': 'Backup folder not found. (Did you unplug an external drive?)',
     'error.path_missing_action': 'Choose a New Folder',
     'error.amds_title':          'Apple Devices Failed to Start',
-    'error.amds_desc':           'Please open Apple Devices once, then return to iVault and retry',
+    'error.amds_desc':           'Apple Devices is installed but the service isn\'t ready. Click below to open it, then come back and retry.',
     'error.amds_retry':          'Retry',
+    'error.amds_launch_btn':     'Open Apple Devices',
+    'error.AFC_CONNECT_FAILED':  'Cannot access iPhone photos. Possible causes: ① Charge-only cable (no data transfer) ② iPhone is locked — unlock it and try again.',
 
     // HEIC CONVERT
     'heic.converting': 'Converting HEIC photos...',

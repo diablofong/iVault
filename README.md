@@ -4,19 +4,20 @@
 
 [繁體中文](README.zh-TW.md) | **English**
 
-![Platform](https://img.shields.io/badge/platform-Windows-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
-![Release](https://img.shields.io/badge/release-pre--release-orange)
+![Release](https://img.shields.io/badge/release-v1.0.0-brightgreen)
 
 Built because Microsoft Photos keeps failing and iCloud runs out of space.
 iVault transfers photos directly from your iPhone via USB — no iCloud, no iTunes sync, no subscription.
 
 ## Features
 
-- USB direct transfer via AFC protocol — no cloud, no account required
-- Auto monthly folder sorting by EXIF shoot date
-- Resume interrupted backups
-- Windows native UI (Wails + WebView2)
+- **USB direct transfer** via Apple's AFC protocol — no cloud, no account required
+- **Auto monthly folder sorting** by EXIF shoot date (e.g. `2024-07/`)
+- **Resume interrupted backups** — picks up exactly where it left off
+- **Auto-start at login** — plug in iPhone and backup begins automatically
+- **Windows Toast notifications** — get notified when backup completes
 - Free & open source — always
 
 ## Screenshots
@@ -38,8 +39,24 @@ iVault transfers photos directly from your iPhone via USB — no iCloud, no iTun
 
 ## System Requirements
 
-- Windows 10 / 11 (64-bit)
-- [Apple Devices App](https://apps.microsoft.com/detail/9NP83LWLPZ9K) (free, Microsoft Store) — required for iPhone USB driver
+| Requirement | Details |
+|---|---|
+| OS | Windows 10 / 11 (64-bit) |
+| Driver | [Apple Devices App](https://apps.microsoft.com/detail/9NP83LWLPZ9K) — free, Microsoft Store |
+| Runtime | WebView2 (built into Windows 11; [download](https://developer.microsoft.com/microsoft-edge/webview2/) for Windows 10) |
+
+> **Note:** On first launch, iVault will guide you through installing Apple Devices if it's not already installed.
+
+> **SmartScreen warning:** Because iVault is unsigned, Windows may show a blue SmartScreen dialog. Click "More info" → "Run anyway" — this is expected for open-source apps without code signing.
+
+## Installation
+
+1. Download `iVault-v1.0.0-windows-amd64.zip` from [Releases](https://github.com/diablofong/iVault/releases/latest)
+2. Unzip and run `iVault.exe`
+3. On first launch, follow the 3-step setup guide:
+   - Install **Apple Devices** from Microsoft Store (if not already installed)
+   - Choose a backup folder
+   - Optionally enable auto-start at login
 
 ## Building from Source
 
@@ -47,8 +64,8 @@ iVault transfers photos directly from your iPhone via USB — no iCloud, no iTun
 
 - [Go 1.23+](https://golang.org/dl/)
 - [Wails v2](https://wails.io/docs/gettingstarted/installation)
-- C compiler: [TDM-GCC](https://jmeubank.github.io/tdm-gcc/) or [MSYS2](https://www.msys2.org/)
-- WebView2 (built into Windows 11; Windows 10 requires separate install)
+- C compiler: [TDM-GCC](https://jmeubank.github.io/tdm-gcc/) or MSYS2 UCRT64 GCC
+- WebView2 (built into Windows 11)
 
 ### Steps
 
@@ -59,7 +76,7 @@ cd iVault
 # Install Go dependencies
 go mod tidy
 
-# Development mode (with hot-reload)
+# Development mode (hot-reload)
 wails dev
 
 # Production build
@@ -76,9 +93,35 @@ Go + Wails v2 (UI shell)
 └── Wails Events  → WebSocket real-time progress (server push)
 ```
 
+## FAQ
+
+**Q: Do I need iTunes?**
+A: No. iVault uses Apple Devices (a newer, lighter Apple app) instead of iTunes. iTunes can actually conflict — close it if it's running.
+
+**Q: Where are my photos saved?**
+A: To whatever folder you choose during setup. Default is the largest non-system drive. Files are organized into `YYYY-MM/` subfolders by shoot date.
+
+**Q: Is iCloud required?**
+A: No. Transfer is entirely local over USB. iCloud never comes into play.
+
+**Q: What if I use iCloud Optimize Storage?**
+A: If Optimize Storage is on, your iPhone only stores thumbnails locally. iVault will back up those thumbnails. To get full-resolution originals, disable Optimize Storage in iPhone Settings → Photos first.
+
+**Q: What happens if I unplug the cable during backup?**
+A: iVault saves your progress. Next time you connect, it resumes from where it left off.
+
+**Q: Is my data safe?**
+A: iVault does not collect, transmit, or store any personal data. All transfers happen locally over USB. See [PRIVACY.md](PRIVACY.md).
+
+**Q: Does it work with iOS 18?**
+A: Yes. iVault supports iOS 14 and later.
+
+**Q: Why does Windows show a security warning?**
+A: iVault doesn't have paid code signing. Click "More info" → "Run anyway" to proceed. The source code is fully open and auditable on GitHub.
+
 ## Reporting Issues
 
-Found a bug or have a feature request? Please open an issue on [GitHub Issues](https://github.com/diablofong/iVault/issues).
+Found a bug or have a feature request? Open an issue on [GitHub Issues](https://github.com/diablofong/iVault/issues).
 
 ## Contributing
 
