@@ -13,11 +13,13 @@ type AppConfig struct {
 	ConvertHeic      bool           `json:"convertHeic"`
 	OrganizeByDate   bool           `json:"organizeByDate"`
 	History          []BackupRecord `json:"history"`
-	LastInterrupted  bool           `json:"lastInterrupted"`
-	InterruptedDone  int            `json:"interruptedDone"`
-	InterruptedTotal int            `json:"interruptedTotal"`
-	FirstBackupDone  bool           `json:"firstBackupDone"`
-	OnboardingDone   bool           `json:"onboardingDone"`
+	LastInterrupted        bool           `json:"lastInterrupted"`
+	InterruptedDone        int            `json:"interruptedDone"`
+	InterruptedTotal       int            `json:"interruptedTotal"`
+	InterruptedDeviceUDID  string         `json:"interruptedDeviceUdid"`
+	FirstBackupDone        bool           `json:"firstBackupDone"`
+	FirstBackupDoneDevices []string       `json:"firstBackupDoneDevices"`
+	OnboardingDone         bool           `json:"onboardingDone"`
 }
 
 // BackupRecord 歷史備份紀錄

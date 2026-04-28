@@ -285,6 +285,7 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 			// 記錄中斷狀態
 			cur := a.configMgr.Get()
 			cur.LastInterrupted = true
+			cur.InterruptedDeviceUDID = cfg.DeviceUDID
 			_ = a.configMgr.Save(cur)
 
 			if be, ok := err.(*backup.BackupError); ok {
@@ -305,6 +306,7 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 				cur.LastInterrupted = true
 				cur.InterruptedDone = result.InterruptedDone
 				cur.InterruptedTotal = result.InterruptedTotal
+				cur.InterruptedDeviceUDID = cfg.DeviceUDID
 				_ = a.configMgr.Save(cur)
 				wailsRuntime.EventsEmit(a.ctx, "backup:interrupted", result)
 				return
@@ -315,8 +317,19 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 			cur.LastInterrupted = false
 			cur.InterruptedDone = 0
 			cur.InterruptedTotal = 0
+			cur.InterruptedDeviceUDID = ""
 			if !cur.FirstBackupDone {
 				cur.FirstBackupDone = true
+			}
+			alreadyDone := false
+			for _, uid := range cur.FirstBackupDoneDevices {
+				if uid == cfg.DeviceUDID {
+					alreadyDone = true
+					break
+				}
+			}
+			if !alreadyDone && cfg.DeviceUDID != "" {
+				cur.FirstBackupDoneDevices = append(cur.FirstBackupDoneDevices, cfg.DeviceUDID)
 			}
 			_ = a.configMgr.Save(cur)
 

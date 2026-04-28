@@ -221,7 +221,12 @@ function registerEvents() {
         // 更新前端 appConfig 快取，避免回 READY 時顯示舊歷史
         if (appConfig) {
             appConfig.lastInterrupted = false;
+            appConfig.interruptedDeviceUdid = '';
             appConfig.firstBackupDone = true;
+            const uid = currentDevice?.udid || '';
+            if (uid && !(appConfig.firstBackupDoneDevices ?? []).includes(uid)) {
+                appConfig.firstBackupDoneDevices = [...(appConfig.firstBackupDoneDevices ?? []), uid];
+            }
             appConfig.history = [{
                 date: new Date().toISOString(),
                 deviceName: currentDevice?.name || 'iPhone',
@@ -246,6 +251,7 @@ function registerEvents() {
         // 取消後若 iPhone 仍插著 → 直接回 READY，不繞 IDLE
         if (appConfig) {
             appConfig.lastInterrupted = true;
+            appConfig.interruptedDeviceUdid = currentDevice?.udid || '';
             if (result) {
                 appConfig.interruptedDone = result.interruptedDone ?? 0;
                 appConfig.interruptedTotal = result.interruptedTotal ?? 0;
@@ -261,7 +267,10 @@ function registerEvents() {
     EventsOn('backup:error', (err) => {
         backupStartTime = null;
         if (comfortTimer) { clearInterval(comfortTimer); comfortTimer = null; }
-        if (appConfig) appConfig.lastInterrupted = true;
+        if (appConfig) {
+            appConfig.lastInterrupted = true;
+            appConfig.interruptedDeviceUdid = currentDevice?.udid || '';
+        }
         if (currentState === 'backing-up') {
             setState('error', err);
         }
@@ -584,6 +593,19 @@ async function onEnterIdle() {
                 infoEl.textContent = t('idle.interrupted.progress');
             }
         }
+        // 驅動未安裝時，CTA 改為「先安裝 Apple Devices」，避免誤導用戶插 iPhone
+        const ctaEl = document.querySelector('#idle-variant-interrupted .idle-cta');
+        if (ctaEl) {
+            const driverBanner = document.getElementById('driver-banner');
+            const driverMissing = driverBanner && driverBanner.style.display !== 'none';
+            if (driverMissing) {
+                ctaEl.textContent = getLang() === 'zh-TW'
+                    ? '先安裝 Apple Devices，才能繼續備份'
+                    : 'Install Apple Devices first to resume backup';
+            } else {
+                ctaEl.textContent = t('idle.interrupted.cta');
+            }
+        }
     } else if (isReturning) {
         // E-13: 確認 manifest 存在，避免資料夾被刪後還顯示 returning 變體
         const rec = history[0];
@@ -605,17 +627,18 @@ async function onEnterIdle() {
         const dateStr = formatRelativeDate(rec.date);
         const photos = rec.photosCount ?? 0;
         const videos = rec.videosCount ?? 0;
+        const deviceLabel = rec.deviceName || 'iPhone';
         const infoEl = document.getElementById('idle-last-backup-info');
         if (infoEl) {
             const lang = getLang();
             if (photos === 0 && videos === 0) {
                 infoEl.textContent = lang === 'zh-TW'
-                    ? `上次備份：${dateStr} · 全部已是最新`
-                    : `Last backed up: ${dateStr} · Everything is up to date`;
+                    ? `上次備份：${dateStr} · ${deviceLabel} · 全部已是最新`
+                    : `Last backed up: ${dateStr} · ${deviceLabel} · Everything is up to date`;
             } else if (lang === 'zh-TW') {
-                infoEl.textContent = `上次備份：${dateStr} · ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`;
+                infoEl.textContent = `上次備份：${dateStr} · ${deviceLabel} · ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`;
             } else {
-                infoEl.textContent = `Last backed up: ${dateStr} · ${fmt(photos)} photos · ${fmt(videos)} videos`;
+                infoEl.textContent = `Last backed up: ${dateStr} · ${deviceLabel} · ${fmt(photos)} photos · ${fmt(videos)} videos`;
             }
         }
     } else {
@@ -698,7 +721,11 @@ async function onEnterReady(info) {
     if (info.udid && selectedPath) estimateFull(info.udid, selectedPath);
 
     // 自動備份規則：回訪用戶從 device-found 進入 ready → 3 秒倒數
-    const isReturning = (appConfig?.history?.length ?? 0) > 0 && !appConfig?.lastInterrupted;
+    // 以當前設備的 UDID 過濾歷史，避免 Device B 觸發 Device A 的回訪倒數
+    const deviceHistory = (appConfig?.history ?? []).filter(h => h.deviceUdid === info.udid);
+    const isCurrentDeviceInterrupted = appConfig?.lastInterrupted &&
+        (!appConfig?.interruptedDeviceUdid || appConfig.interruptedDeviceUdid === info.udid);
+    const isReturning = deviceHistory.length > 0 && !isCurrentDeviceInterrupted;
     const fromDevice = previousState === 'device-found';
     if (isReturning && fromDevice && !autoSnoozeActive) {
         startAutoCountdown();
@@ -729,8 +756,10 @@ async function updateLastBackupRow(path, udid) {
         return;
     }
 
-    // Step 2: lastInterrupted（E-6）
-    if (appConfig?.lastInterrupted) {
+    // Step 2: lastInterrupted，只在中斷的設備是當前設備時才顯示（E-6）
+    const isCurrentInterrupted = appConfig?.lastInterrupted &&
+        (!appConfig?.interruptedDeviceUdid || appConfig.interruptedDeviceUdid === udid);
+    if (isCurrentInterrupted) {
         const done = appConfig.interruptedDone ?? 0;
         const total = appConfig.interruptedTotal ?? 0;
         const lang = getLang();
@@ -783,7 +812,11 @@ async function updateLastBackupRow(path, udid) {
 }
 
 function onEnterDone(result) {
-    const isFirst = !(appConfig?.firstBackupDone);
+    const currentUdid = currentDevice?.udid || '';
+    const doneDevices = appConfig?.firstBackupDoneDevices ?? [];
+    const isFirst = currentUdid
+        ? !doneDevices.includes(currentUdid)
+        : !(appConfig?.firstBackupDone);
     const photos = result.photosCount ?? 0;
     const videos = result.videosCount ?? 0;
 

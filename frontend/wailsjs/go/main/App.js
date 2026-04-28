@@ -22,6 +22,14 @@ export function EstimateBackupSize(arg1, arg2) {
   return window['go']['main']['App']['EstimateBackupSize'](arg1, arg2);
 }
 
+export function GetAutostart() {
+  return window['go']['main']['App']['GetAutostart']();
+}
+
+export function GetBackupEstimate(arg1, arg2) {
+  return window['go']['main']['App']['GetBackupEstimate'](arg1, arg2);
+}
+
 export function GetBackupHistory() {
   return window['go']['main']['App']['GetBackupHistory']();
 }
@@ -54,6 +62,10 @@ export function InstallHeicCodec() {
   return window['go']['main']['App']['InstallHeicCodec']();
 }
 
+export function LaunchAppleDevices() {
+  return window['go']['main']['App']['LaunchAppleDevices']();
+}
+
 export function LoadConfig() {
   return window['go']['main']['App']['LoadConfig']();
 }
@@ -78,27 +90,14 @@ export function SelectBackupFolder() {
   return window['go']['main']['App']['SelectBackupFolder']();
 }
 
+export function SetAutostart(arg1) {
+  return window['go']['main']['App']['SetAutostart'](arg1);
+}
+
 export function StartBackup(arg1) {
   return window['go']['main']['App']['StartBackup'](arg1);
 }
 
 export function TriggerTrustCheck(arg1) {
   return window['go']['main']['App']['TriggerTrustCheck'](arg1);
-}
-
-export function GetAutostart() {
-  return window['go']['main']['App']['GetAutostart']();
-}
-
-export function SetAutostart(arg1) {
-  return window['go']['main']['App']['SetAutostart'](arg1);
-}
-
-export function LaunchAppleDevices() {
-  return window['go']['main']['App']['LaunchAppleDevices']();
-}
-
-
-export function GetBackupEstimate(arg1, arg2) {
-  return window['go']['main']['App']['GetBackupEstimate'](arg1, arg2);
 }

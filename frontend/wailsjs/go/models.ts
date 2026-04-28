@@ -1,19 +1,5 @@
 export namespace backup {
-
-	export class BackupEstimate {
-	    totalBytes: number;
-	    maxBytes: number;
-	    fileCount: number;
-
-	    static createFrom(source: any = {}) { return new BackupEstimate(source); }
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.totalBytes = source["totalBytes"];
-	        this.maxBytes = source["maxBytes"];
-	        this.fileCount = source["fileCount"];
-	    }
-	}
-
+	
 	export class BackupConfig {
 	    deviceUdid: string;
 	    deviceName: string;
@@ -32,6 +18,22 @@ export namespace backup {
 	        this.backupPath = source["backupPath"];
 	        this.convertHeic = source["convertHeic"];
 	        this.organizeByDate = source["organizeByDate"];
+	    }
+	}
+	export class BackupEstimate {
+	    totalBytes: number;
+	    maxBytes: number;
+	    fileCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackupEstimate(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalBytes = source["totalBytes"];
+	        this.maxBytes = source["maxBytes"];
+	        this.fileCount = source["fileCount"];
 	    }
 	}
 
@@ -79,7 +81,7 @@ export namespace config {
 	    interruptedTotal: number;
 	    firstBackupDone: boolean;
 	    onboardingDone: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
 	    }
@@ -96,7 +98,7 @@ export namespace config {
 	        this.firstBackupDone = source["firstBackupDone"];
 	        this.onboardingDone = source["onboardingDone"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
