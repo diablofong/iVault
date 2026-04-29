@@ -2,6 +2,7 @@ package backup
 
 import (
 	"bytes"
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"strings"
@@ -198,4 +199,128 @@ func TestManifestLocalExists_NoPathTraversal(t *testing.T) {
 	// 不論上層目錄有無此檔案，測試的重點是路徑拼接邏輯不 panic
 	// 這裡只要不 panic、不 crash 即通過；實際結果取決於測試環境
 	_ = manifestLocalExists(dir, entry)
+}
+
+// ============================================================
+// #4 parseMvhd 測試：QuickTime mvhd atom 日期解析
+// ============================================================
+
+// buildMvhdData 組裝一個最小合法的 mvhd box 資料。
+// version=0 → creation_time 為 uint32；version=1 → uint64。
+func buildMvhdData(version byte, creationSecs uint64) []byte {
+	var buf bytes.Buffer
+	buf.Write([]byte("mvhd"))
+	buf.WriteByte(version)
+	buf.Write([]byte{0, 0, 0}) // flags
+	switch version {
+	case 0:
+		b := make([]byte, 4)
+		binary.BigEndian.PutUint32(b, uint32(creationSecs))
+		buf.Write(b)
+	case 1:
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, creationSecs)
+		buf.Write(b)
+	}
+	return buf.Bytes()
+}
+
+func TestParseMvhd_Version0(t *testing.T) {
+	target := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	secs := uint64(target.Sub(qtEpoch).Seconds())
+
+	got, ok := parseMvhd(buildMvhdData(0, secs))
+	if !ok {
+		t.Fatal("expected ok=true for version-0 mvhd")
+	}
+	if got.Year() != 2024 || got.Month() != 1 || got.Day() != 1 {
+		t.Errorf("unexpected date: %v", got)
+	}
+}
+
+func TestParseMvhd_Version1(t *testing.T) {
+	target := time.Date(2024, 7, 15, 0, 0, 0, 0, time.UTC)
+	secs := uint64(target.Sub(qtEpoch).Seconds())
+
+	got, ok := parseMvhd(buildMvhdData(1, secs))
+	if !ok {
+		t.Fatal("expected ok=true for version-1 mvhd")
+	}
+	if got.Year() != 2024 || got.Month() != 7 || got.Day() != 15 {
+		t.Errorf("unexpected date: %v", got)
+	}
+}
+
+func TestParseMvhd_ZeroTimestamp(t *testing.T) {
+	_, ok := parseMvhd(buildMvhdData(0, 0))
+	if ok {
+		t.Error("expected ok=false for zero creation_time")
+	}
+}
+
+func TestParseMvhd_NotFound(t *testing.T) {
+	_, ok := parseMvhd([]byte("ftypisom\x00\x00\x00\x00"))
+	if ok {
+		t.Error("expected ok=false when no mvhd box present")
+	}
+}
+
+func TestParseMvhd_InvalidVersion(t *testing.T) {
+	data := buildMvhdData(2, 1000000000) // version=2 is unknown
+	_, ok := parseMvhd(data)
+	if ok {
+		t.Error("expected ok=false for unknown mvhd version")
+	}
+}
+
+// ============================================================
+// #5 safeFileName 測試：路徑穿越防護 + Windows 保留字
+// ============================================================
+
+func TestSafeFileName_NormalFile(t *testing.T) {
+	got := safeFileName("IMG_0001.HEIC")
+	if got != "IMG_0001.HEIC" {
+		t.Errorf("expected unchanged, got %q", got)
+	}
+}
+
+func TestSafeFileName_PathTraversalDotDot(t *testing.T) {
+	got := safeFileName("../../etc/passwd")
+	if strings.Contains(got, "..") || strings.Contains(got, "/") {
+		t.Errorf("path traversal not stripped: %q", got)
+	}
+	if got != "passwd" {
+		t.Errorf("expected 'passwd', got %q", got)
+	}
+}
+
+func TestSafeFileName_WindowsPathSeparator(t *testing.T) {
+	got := safeFileName(`subdir\evil.jpg`)
+	if strings.Contains(got, `\`) || strings.Contains(got, "/") {
+		t.Errorf("directory separator not stripped: %q", got)
+	}
+}
+
+func TestSafeFileName_ReservedNameNUL(t *testing.T) {
+	got := safeFileName("NUL.jpg")
+	if !strings.HasPrefix(got, "_") {
+		t.Errorf("expected reserved name to be prefixed with '_', got %q", got)
+	}
+}
+
+func TestSafeFileName_ReservedNameCOM1(t *testing.T) {
+	got := safeFileName("COM1.txt")
+	if !strings.HasPrefix(got, "_") {
+		t.Errorf("expected reserved name to be prefixed with '_', got %q", got)
+	}
+}
+
+func TestSafeFileName_DotAlone(t *testing.T) {
+	got := safeFileName(".")
+	if got == "." || got == "" {
+		t.Errorf("expected fallback for '.', got %q", got)
+	}
+	if strings.HasPrefix(got, "unknown_") == false {
+		t.Errorf("expected 'unknown_' fallback, got %q", got)
+	}
 }
