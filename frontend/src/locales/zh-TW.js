@@ -58,19 +58,13 @@ export default {
     'trust.deny':          '不信任',
     'trust.allow':         '信任',
 
-    // DRIVER_MISSING（J 改寫：去技術術語）
-    'driver.title':        '讓 Windows 看見你的 iPhone',
-    'driver.subtitle':     'Apple 官方免費 App，安裝一次，永久使用',
+    // DRIVER BANNER（保留安裝按鈕文字）
     'driver.open_store':   '一鍵安裝',
-    'driver.pending_title':'已開啟 Microsoft Store',
-    'driver.hint':         '安裝完成後，點下方按鈕繼續',
-    'driver.recheck':      '我已安裝完成，繼續',
-    'driver.recheck_fail': '尚未偵測到，請確認已安裝完成',
-    'driver.success':      '安裝完成！',
-    'driver.success_hint': '請重新插拔 iPhone 開始備份',
-    'driver.replug_done':  '開始',
-    'driver.faq_toggle':   '為什麼需要？',
-    'driver.faq_a':        '這是 Apple 官方提供的免費 App（Microsoft Store 可下載），讓 Windows 能讀取 iPhone 的照片。安全可靠，iVault 不會存取你的 Apple ID 或 iCloud。',
+
+    // 安裝確認 modal（三個入口共用）
+    'install.close_confirm.desc':   'iVault 需要先關閉。\n請在 Microsoft Store 安裝 Apple Devices，\n完成後重新開啟 iVault 即可開始備份。',
+    'install.close_confirm.ok':     '確定，關閉 app',
+    'install.close_confirm.cancel': '取消',
 
     // READY
     'ready.incremental_hint': 'iVault 只複製新增的照片，已備份的不會重複。',
@@ -134,7 +128,7 @@ export default {
     'error.report':              '回報問題 →',
     'error.DEVICE_DISCONNECTED': 'iPhone 斷線了（可能是沒電、或 USB 線鬆脫）。照片備份已暫停，重新插上繼續。',
     'error.PERMISSION_DENIED':   '無法寫入備份資料夾。可能是防毒軟體攔截，請暫時關閉後重試，或選擇其他資料夾。',
-    'error.AMDS_TIMEOUT':        '無法啟動 Apple 裝置服務。請重新插拔 iPhone 再試。',
+    'error.AMDS_TIMEOUT':        '無法啟動 Apple 裝置服務。請確認 Apple Devices 已安裝，嘗試重新插拔 iPhone，或重新啟動電腦。',
     'error.DISK_FULL':           '備份硬碟空間不夠。請清出足夠空間後重試。',
     'error.TRUST_TIMEOUT':       'iPhone 沒有回應信任請求。請重新插拔再試。',
     'error.AFC_TIMEOUT':         'iPhone 連線不穩。請換一條 USB 線或重新插拔。',

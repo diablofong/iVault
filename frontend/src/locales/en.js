@@ -59,18 +59,13 @@ export default {
     'trust.allow':         'Trust',
 
     // DRIVER_MISSING（J rewrite）
-    'driver.title':        'Let Windows see your iPhone',
-    'driver.subtitle':     'Free official Apple app — install once, works forever',
+    // DRIVER BANNER（保留安裝按鈕文字）
     'driver.open_store':   'Install Free App',
-    'driver.pending_title':'Microsoft Store opened',
-    'driver.hint':         'After installation, click below to continue',
-    'driver.recheck':      'Done installing — continue',
-    'driver.recheck_fail': 'Not detected yet. Please confirm the installation finished.',
-    'driver.success':      'All set!',
-    'driver.success_hint': 'Reconnect your iPhone to start backing up',
-    'driver.replug_done':  'Continue',
-    'driver.faq_toggle':   'Why do I need this?',
-    'driver.faq_a':        'This free app (available in the Microsoft Store) lets Windows read photos directly from your iPhone. It\'s made by Apple, completely safe, and iVault never touches your Apple ID or iCloud.',
+
+    // 安裝確認 modal（三個入口共用）
+    'install.close_confirm.desc':   'iVault needs to close first.\nInstall Apple Devices from the Microsoft Store,\nthen reopen iVault to start backing up.',
+    'install.close_confirm.ok':     'OK, close app',
+    'install.close_confirm.cancel': 'Cancel',
 
     // READY
     'ready.incremental_hint': 'iVault only copies new photos — previously backed up files are skipped.',
@@ -134,7 +129,7 @@ export default {
     'error.report':              'Report Issue →',
     'error.DEVICE_DISCONNECTED': 'iPhone disconnected (battery died or cable came loose). Your backup is paused — reconnect to resume.',
     'error.PERMISSION_DENIED':   'Cannot write to the backup folder. Antivirus software may be blocking it — try disabling it temporarily, or choose a different folder.',
-    'error.AMDS_TIMEOUT':        'Could not start Apple Devices service. Try unplugging and reconnecting your iPhone.',
+    'error.AMDS_TIMEOUT':        'Could not start Apple Devices service. Make sure Apple Devices is installed, try reconnecting your iPhone, or restart your computer.',
     'error.DISK_FULL':           'Not enough disk space. Please free up space and try again.',
     'error.TRUST_TIMEOUT':       'iPhone did not respond to the trust request. Try unplugging and reconnecting.',
     'error.AFC_TIMEOUT':         'iPhone connection is unstable. Try a different USB cable or reconnect.',

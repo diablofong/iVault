@@ -87,7 +87,9 @@ func (a *App) GetPlatformInfo() platform.Info {
 	if a.platformInfo == nil {
 		return platform.Info{}
 	}
-	return *a.platformInfo
+	info := *a.platformInfo
+	info.IsDevMode = (Version == "dev")
+	return info
 }
 
 // GetConnectedDevice 取得當前連接的裝置（nil 代表無裝置）

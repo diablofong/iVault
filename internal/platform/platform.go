@@ -9,6 +9,7 @@ type Info struct {
 	AppleDevicesInstalled bool   `json:"appleDevicesInstalled"` // Windows only
 	HeicSupported         bool   `json:"heicSupported"`
 	DarkMode              bool   `json:"darkMode"`
+	IsDevMode             bool   `json:"isDevMode"` // true when Version == "dev" (wails dev)
 }
 
 // DiskInfo 磁碟空間資訊

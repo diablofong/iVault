@@ -32,7 +32,7 @@ import { t, renderAll, setLang, getLang } from './i18n.js';
 // ============================================================
 // 狀態機
 // ============================================================
-const STATES = ['idle', 'device-found', 'trust-guide', 'driver-missing', 'ready', 'backing-up', 'done', 'error', 'onboarding'];
+const STATES = ['idle', 'device-found', 'trust-guide', 'ready', 'backing-up', 'done', 'error', 'onboarding'];
 
 let currentState = null;
 let previousState = null;
@@ -277,21 +277,13 @@ function registerEvents() {
     });
 
     EventsOn('driver:required', () => {
-        // H: 早期警告 banner，不強制換頁
+        // H: 早期警告 banner，不強制換頁；onboarding 進行中不覆蓋
         setDriverBanner(true);
-        if (currentState !== 'idle' && currentState !== 'driver-missing') setState('idle');
+        if (currentState !== 'idle' && currentState !== 'onboarding') setState('idle');
     });
 
     EventsOn('driver:installed', () => {
         setDriverBanner(false);
-        if (currentState === 'driver-missing') {
-            const pending = document.getElementById('install-pending');
-            const initial = document.getElementById('install-initial');
-            const success = document.getElementById('install-success');
-            if (pending) pending.style.display = 'none';
-            if (initial) initial.style.display = 'none';
-            if (success) success.style.display = '';
-        }
     });
 
     EventsOn('backup:path-missing', async () => {
@@ -373,53 +365,15 @@ function bindHandlers() {
         }
     });
 
-    // DRIVER_MISSING
-    document.getElementById('btn-install-driver')?.addEventListener('click', () => {
+    // 安裝確認 modal
+    document.getElementById('btn-confirm-close-app')?.addEventListener('click', () => {
         InstallAppleDevices();
-        document.getElementById('install-initial').style.display = 'none';
-        const pending = document.getElementById('install-pending');
-        if (pending) {
-            pending.style.display = '';
-            pending.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                const val = t(key);
-                if (val) el.textContent = val;
-            });
+        if (!platformInfo?.isDevMode) {
+            Quit();
         }
     });
-
-    document.getElementById('btn-recheck-driver')?.addEventListener('click', async () => {
-        const btn = document.getElementById('btn-recheck-driver');
-        const failMsg = document.getElementById('install-recheck-fail');
-        if (btn) btn.disabled = true;
-        if (failMsg) failMsg.style.display = 'none';
-        try {
-            const installed = await CheckAppleDevicesInstalled();
-            if (installed) {
-                document.getElementById('install-pending').style.display = 'none';
-                document.getElementById('install-success').style.display = '';
-            } else {
-                if (failMsg) failMsg.style.display = '';
-            }
-        } catch (e) {
-            if (failMsg) failMsg.style.display = '';
-        } finally {
-            if (btn) btn.disabled = false;
-        }
-    });
-
-    document.getElementById('btn-replug-done')?.addEventListener('click', () => {
-        resetDriverMissingView();
-        setState('idle');
-    });
-
-    document.getElementById('btn-faq-toggle')?.addEventListener('click', () => {
-        const content = document.getElementById('driver-faq-content');
-        const icon = document.getElementById('faq-toggle-icon');
-        if (!content) return;
-        const expanded = content.style.display !== 'none';
-        content.style.display = expanded ? 'none' : '';
-        if (icon) icon.textContent = expanded ? '▶' : '▼';
+    document.getElementById('btn-cancel-close-app')?.addEventListener('click', () => {
+        document.getElementById('modal-close-for-install').style.display = 'none';
     });
 
     // TRUST_GUIDE
@@ -506,8 +460,8 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
 
     // H: Driver banner 安裝按鈕
     document.getElementById('btn-driver-banner-install')?.addEventListener('click', () => {
-        resetDriverMissingView();
-        setState('driver-missing');
+        if (currentState === 'backing-up') return;
+        showCloseAppConfirm();
     });
 
     // 自動備份倒數按鈕
@@ -534,8 +488,7 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
         goToOnboardStep(2);
     });
     document.getElementById('btn-onboard-s1-install')?.addEventListener('click', () => {
-        InstallAppleDevices();
-        goToOnboardStep(2);
+        showCloseAppConfirm();
     });
     document.getElementById('btn-onboard-s1-skip')?.addEventListener('click', () => {
         goToOnboardStep(2);
@@ -567,6 +520,9 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
 // ============================================================
 
 async function onEnterIdle() {
+    const bannerBtn = document.getElementById('btn-driver-banner-install');
+    if (bannerBtn) bannerBtn.disabled = false;
+
     const cfg = appConfig;
     const history = cfg?.history ?? [];
     const isInterrupted = cfg?.lastInterrupted === true;
@@ -655,7 +611,8 @@ async function onEnterDeviceFound(info) {
         try {
             const installed = await CheckAppleDevicesInstalled();
             if (!installed) {
-                setState('driver-missing');
+                setDriverBanner(true);
+                setState('idle');
                 return;
             }
         } catch (e) {}
@@ -812,6 +769,9 @@ async function updateLastBackupRow(path, udid) {
 }
 
 function onEnterDone(result) {
+    const bannerBtn = document.getElementById('btn-driver-banner-install');
+    if (bannerBtn) bannerBtn.disabled = false;
+
     const currentUdid = currentDevice?.udid || '';
     const doneDevices = appConfig?.firstBackupDoneDevices ?? [];
     const isFirst = currentUdid
@@ -1182,6 +1142,8 @@ async function onStartBackup() {
             organizeByDate: true,
         });
         setState('backing-up');
+        const bannerBtn = document.getElementById('btn-driver-banner-install');
+        if (bannerBtn) bannerBtn.disabled = true;
     } catch (e) {
         setState('error', { code: 'UNKNOWN_ERROR', message: String(e), recoverable: true });
     } finally {
@@ -1259,19 +1221,9 @@ function startComfortTimer() {
     }, 120000); // 每 2 分鐘換一條
 }
 
-function resetDriverMissingView() {
-    const initial    = document.getElementById('install-initial');
-    const pending    = document.getElementById('install-pending');
-    const success    = document.getElementById('install-success');
-    const failMsg    = document.getElementById('install-recheck-fail');
-    const faqContent = document.getElementById('driver-faq-content');
-    const faqIcon    = document.getElementById('faq-toggle-icon');
-    if (initial)    initial.style.display = '';
-    if (pending)    pending.style.display = 'none';
-    if (success)    success.style.display = 'none';
-    if (failMsg)    failMsg.style.display = 'none';
-    if (faqContent) faqContent.style.display = 'none';
-    if (faqIcon)    faqIcon.textContent = '▶';
+function showCloseAppConfirm() {
+    const modal = document.getElementById('modal-close-for-install');
+    if (modal) modal.style.display = '';
 }
 
 function setEl(id, text) {

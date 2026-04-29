@@ -79,7 +79,9 @@ export namespace config {
 	    lastInterrupted: boolean;
 	    interruptedDone: number;
 	    interruptedTotal: number;
+	    interruptedDeviceUdid: string;
 	    firstBackupDone: boolean;
+	    firstBackupDoneDevices: string[];
 	    onboardingDone: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -95,7 +97,9 @@ export namespace config {
 	        this.lastInterrupted = source["lastInterrupted"];
 	        this.interruptedDone = source["interruptedDone"];
 	        this.interruptedTotal = source["interruptedTotal"];
+	        this.interruptedDeviceUdid = source["interruptedDeviceUdid"];
 	        this.firstBackupDone = source["firstBackupDone"];
+	        this.firstBackupDoneDevices = source["firstBackupDoneDevices"];
 	        this.onboardingDone = source["onboardingDone"];
 	    }
 	
@@ -197,6 +201,7 @@ export namespace platform {
 	    appleDevicesInstalled: boolean;
 	    heicSupported: boolean;
 	    darkMode: boolean;
+	    isDevMode: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Info(source);
@@ -209,6 +214,7 @@ export namespace platform {
 	        this.appleDevicesInstalled = source["appleDevicesInstalled"];
 	        this.heicSupported = source["heicSupported"];
 	        this.darkMode = source["darkMode"];
+	        this.isDevMode = source["isDevMode"];
 	    }
 	}
 

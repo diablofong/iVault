@@ -187,53 +187,6 @@
         </div>
 
         <!-- DRIVER_MISSING：Windows 缺少 Apple Devices（減法設計） -->
-        <div class="state-view" id="view-driver-missing">
-            <div class="card">
-                <div class="state-icon">
-                    <!-- Apple 標誌形象 -->
-                    <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-                        <rect x="2" y="2" width="48" height="48" rx="12" stroke="currentColor" stroke-width="2" opacity="0.5"/>
-                        <path d="M30.5 14c.4-1.5.1-3-.8-4.2-1.2 1.2-2.1 2.8-1.8 4.4 1 .1 1.9-.1 2.6-.2z" fill="currentColor" opacity="0.8"/>
-                        <path d="M34.4 28.4c0-3.4 2.8-5 2.9-5.1-1.6-2.3-4-2.6-4.9-2.7-2.1-.2-4.1 1.2-5.1 1.2-1.1 0-2.7-1.2-4.4-1.1-2.3.1-4.4 1.3-5.5 3.4-2.4 4.1-.6 10.1 1.7 13.4 1.1 1.6 2.5 3.4 4.2 3.4 1.7-.1 2.3-1.1 4.4-1.1 2 0 2.6 1.1 4.4 1 1.8 0 3-1.6 4.1-3.2.8-1.2 1.4-2.5 1.7-3.8-1.8-.8-3.5-2.6-3.5-5.4z" fill="currentColor" opacity="0.8"/>
-                    </svg>
-                </div>
-                <h2 data-i18n="driver.title">需要先安裝 Apple Devices（免費）</h2>
-                <p class="state-hint" data-i18n="driver.subtitle">由 Apple 官方提供，只需安裝一次</p>
-
-                <!-- 安裝前 -->
-                <div id="install-initial">
-                    <button class="btn-primary" id="btn-install-driver" data-i18n="driver.open_store">一鍵安裝</button>
-                </div>
-                <!-- 等待安裝 -->
-                <div id="install-pending" style="display:none">
-                    <p class="state-hint" data-i18n="driver.hint">安裝完成後，點下方按鈕繼續</p>
-                    <button class="btn-primary" id="btn-recheck-driver" data-i18n="driver.recheck">我已安裝完成，重新偵測</button>
-                    <p class="install-recheck-fail" id="install-recheck-fail" style="display:none" data-i18n="driver.recheck_fail">尚未偵測到，請確認 Apple Devices 已安裝完成</p>
-                </div>
-                <!-- 安裝完成 -->
-                <div id="install-success" style="display:none">
-                    <div class="install-success-icon">
-                        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                            <circle cx="18" cy="18" r="14" stroke="currentColor" stroke-width="2"/>
-                            <path d="M12 18l5 5 7-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
-                    <p class="install-success-title" data-i18n="driver.success">安裝完成！</p>
-                    <p class="state-hint" data-i18n="driver.success_hint">請重新插拔 iPhone 以繼續</p>
-                    <button class="btn-primary" id="btn-replug-done" data-i18n="driver.replug_done">繼續</button>
-                </div>
-
-                <!-- FAQ 收進連結 -->
-                <div class="driver-faq">
-                    <button class="btn-faq-toggle" id="btn-faq-toggle">
-                        <span data-i18n="driver.faq_toggle">為什麼需要？</span>
-                        <span class="faq-toggle-icon" id="faq-toggle-icon">▶</span>
-                    </button>
-                    <p id="driver-faq-content" class="faq-answer" style="display:none" data-i18n="driver.faq_a">Apple Devices 是 Apple 官方提供的免費驅動程式，讓 Windows 能辨識 iPhone。完全安全，iVault 不會存取你的 Apple 帳號。</p>
-                </div>
-            </div>
-        </div>
-
         <!-- READY：準備備份 -->
         <div class="state-view" id="view-ready">
             <div class="card">
@@ -417,5 +370,14 @@
     </div><!-- /.main-content -->
 </div><!-- /#app -->
 <script src="./src/main.js" type="module"></script>
+
+    <!-- 安裝 Apple Devices 確認 modal（共用，三個入口共享） -->
+    <div id="modal-close-for-install" style="display:none" class="modal-overlay">
+        <div class="modal-card">
+            <p data-i18n="install.close_confirm.desc"></p>
+            <button class="btn-primary" id="btn-confirm-close-app" data-i18n="install.close_confirm.ok"></button>
+            <button class="btn-secondary" id="btn-cancel-close-app" data-i18n="install.close_confirm.cancel"></button>
+        </div>
+    </div>
 </body>
 </html>
