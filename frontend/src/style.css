@@ -476,7 +476,7 @@ body.os-windows .card { border-radius: 12px; }
 /* ── IDLE 隱私標注（K） ─────────────────────────────────── */
 .idle-privacy-note {
     font-size: 11px;
-    color: var(--text-quaternary);
+    color: var(--text-tertiary);
     text-align: center;
     margin-top: -4px;
 }
@@ -1315,7 +1315,7 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
 
 .idle-tagline {
     font-size: 11px;
-    color: var(--text-quaternary);
+    color: var(--text-tertiary);
     text-align: center;
     letter-spacing: 0.02em;
 }
@@ -1365,7 +1365,7 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
     height: 30px;
     border: none;
     background: transparent;
-    color: var(--text-quaternary);
+    color: var(--text-tertiary);
     border-radius: 8px;
     cursor: pointer;
     display: flex;
@@ -1498,24 +1498,26 @@ body:not(.dark) .update-banner {
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: oklch(0 0 0 / 0.5);
+    background: oklch(0 0 0 / 0.65);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 9999;
 }
 .modal-card {
-    background: var(--surface);
+    background: var(--bg-card);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 32px 28px;
-    max-width: 320px;
+    max-width: 360px;
     width: 90%;
     display: flex;
     flex-direction: column;
     gap: 12px;
     text-align: center;
-    box-shadow: 0 8px 32px oklch(0 0 0 / 0.25);
+    box-shadow: 0 8px 32px oklch(0 0 0 / 0.4);
 }
 .modal-card p {
     margin: 0 0 8px;

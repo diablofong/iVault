@@ -1,17 +1,17 @@
 export namespace backup {
-
+	
 	export class BackupConfig {
 	    deviceUdid: string;
 	    deviceName: string;
-	    folderName: string;
+	    folderName?: string;
 	    backupPath: string;
 	    convertHeic: boolean;
 	    organizeByDate: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new BackupConfig(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.deviceUdid = source["deviceUdid"];
@@ -26,11 +26,11 @@ export namespace backup {
 	    totalBytes: number;
 	    maxBytes: number;
 	    fileCount: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new BackupEstimate(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.totalBytes = source["totalBytes"];
@@ -42,38 +42,7 @@ export namespace backup {
 }
 
 export namespace config {
-
-	export class DeviceConfig {
-	    name: string;
-	    folderName: string;
-	    backupPath: string;
-	    lastBackupDate: string;
-	    photosCount: number;
-	    videosCount: number;
-	    firstBackupDone: boolean;
-	    lastInterrupted: boolean;
-	    interruptedDone: number;
-	    interruptedTotal: number;
-
-	    static createFrom(source: any = {}) {
-	        return new DeviceConfig(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.folderName = source["folderName"];
-	        this.backupPath = source["backupPath"];
-	        this.lastBackupDate = source["lastBackupDate"];
-	        this.photosCount = source["photosCount"];
-	        this.videosCount = source["videosCount"];
-	        this.firstBackupDone = source["firstBackupDone"];
-	        this.lastInterrupted = source["lastInterrupted"];
-	        this.interruptedDone = source["interruptedDone"];
-	        this.interruptedTotal = source["interruptedTotal"];
-	    }
-	}
-
+	
 	export class BackupRecord {
 	    date: string;
 	    deviceName: string;
@@ -85,11 +54,11 @@ export namespace config {
 	    failed: number;
 	    totalBytes: number;
 	    duration: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new BackupRecord(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.date = source["date"];
@@ -104,34 +73,62 @@ export namespace config {
 	        this.duration = source["duration"];
 	    }
 	}
-
-	export class AppConfig {
-	    defaultBackupPath: string;
-	    convertHeic: boolean;
-	    organizeByDate: boolean;
-	    onboardingDone: boolean;
-	    devices: {[key: string]: DeviceConfig};
-	    // Legacy fields (deprecated, cleared after migration)
-	    lastBackupPath: string;
-	    history: BackupRecord[];
+	export class DeviceConfig {
+	    name: string;
+	    folderName: string;
+	    backupPath?: string;
+	    lastBackupDate?: string;
+	    photosCount: number;
+	    videosCount: number;
+	    firstBackupDone: boolean;
 	    lastInterrupted: boolean;
 	    interruptedDone: number;
 	    interruptedTotal: number;
-	    interruptedDeviceUdid: string;
-	    firstBackupDone: boolean;
-	    firstBackupDoneDevices: string[];
-
+	
+	    static createFrom(source: any = {}) {
+	        return new DeviceConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.folderName = source["folderName"];
+	        this.backupPath = source["backupPath"];
+	        this.lastBackupDate = source["lastBackupDate"];
+	        this.photosCount = source["photosCount"];
+	        this.videosCount = source["videosCount"];
+	        this.firstBackupDone = source["firstBackupDone"];
+	        this.lastInterrupted = source["lastInterrupted"];
+	        this.interruptedDone = source["interruptedDone"];
+	        this.interruptedTotal = source["interruptedTotal"];
+	    }
+	}
+	export class AppConfig {
+	    defaultBackupPath?: string;
+	    convertHeic: boolean;
+	    organizeByDate: boolean;
+	    onboardingDone: boolean;
+	    devices?: Record<string, DeviceConfig>;
+	    lastBackupPath?: string;
+	    history?: BackupRecord[];
+	    lastInterrupted?: boolean;
+	    interruptedDone?: number;
+	    interruptedTotal?: number;
+	    interruptedDeviceUdid?: string;
+	    firstBackupDone?: boolean;
+	    firstBackupDoneDevices?: string[];
+	
 	    static createFrom(source: any = {}) {
 	        return new AppConfig(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.defaultBackupPath = source["defaultBackupPath"];
 	        this.convertHeic = source["convertHeic"];
 	        this.organizeByDate = source["organizeByDate"];
 	        this.onboardingDone = source["onboardingDone"];
-	        this.devices = source["devices"];
+	        this.devices = this.convertValues(source["devices"], DeviceConfig, true);
 	        this.lastBackupPath = source["lastBackupPath"];
 	        this.history = this.convertValues(source["history"], BackupRecord);
 	        this.lastInterrupted = source["lastInterrupted"];
@@ -141,7 +138,7 @@ export namespace config {
 	        this.firstBackupDone = source["firstBackupDone"];
 	        this.firstBackupDoneDevices = source["firstBackupDoneDevices"];
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -160,11 +157,12 @@ export namespace config {
 		    return a;
 		}
 	}
+	
 
 }
 
 export namespace device {
-
+	
 	export class DeviceDetail {
 	    udid: string;
 	    name: string;
@@ -174,11 +172,11 @@ export namespace device {
 	    photoCount: number;
 	    usedSpace: number;
 	    totalSpace: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DeviceDetail(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.udid = source["udid"];
@@ -197,11 +195,11 @@ export namespace device {
 	    model: string;
 	    iosVersion: string;
 	    trusted: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DeviceInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.udid = source["udid"];
@@ -215,17 +213,17 @@ export namespace device {
 }
 
 export namespace platform {
-
+	
 	export class DiskInfo {
 	    path: string;
 	    totalSpace: number;
 	    freeSpace: number;
 	    isSystem: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DiskInfo(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
@@ -241,11 +239,11 @@ export namespace platform {
 	    heicSupported: boolean;
 	    darkMode: boolean;
 	    isDevMode: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new Info(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.os = source["os"];
@@ -258,3 +256,4 @@ export namespace platform {
 	}
 
 }
+
