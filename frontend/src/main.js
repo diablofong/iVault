@@ -478,8 +478,8 @@ function bindHandlers() {
         if (e.target === e.currentTarget) closeSettingsModal();
     });
     document.getElementById('btn-settings-open-folder')?.addEventListener('click', () => {
-        const path = appConfig?.defaultBackupPath;
-        if (path) OpenFolder(path);
+        const path = document.getElementById('settings-path-value')?.textContent;
+        if (path && path !== '-') OpenFolder(path);
     });
     document.getElementById('btn-settings-change-path')?.addEventListener('click', async () => {
         try {
@@ -1313,7 +1313,10 @@ function startComfortTimer() {
 async function openSettingsModal() {
     const modal = document.getElementById('modal-settings');
     if (!modal) return;
-    const path = appConfig?.defaultBackupPath || '';
+    let path = appConfig?.defaultBackupPath || '';
+    if (!path) {
+        try { path = await GetDefaultBackupPath(); } catch (e) {}
+    }
     const pathEl = document.getElementById('settings-path-value');
     if (pathEl) pathEl.textContent = path || '-';
     updateSettingsSize(path);

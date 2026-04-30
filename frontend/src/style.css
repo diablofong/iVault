@@ -119,7 +119,7 @@ body.os-windows .titlebar { padding-left: 14px; padding-right: 0; }
     background: var(--bg-surface-2);
     border: 1px solid var(--border);
     border-radius: 999px;
-    padding: 5px 5px 5px 12px;
+    padding: 5px 6px 5px 12px;
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
     box-shadow: 0 4px 14px oklch(0 0 0 / 0.22);
@@ -1355,28 +1355,26 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
 }
 
 /* ── IDLE 設定按鈕 ───────────────────────────────────────── */
-#view-idle .card { position: relative; }
 
 .btn-settings {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 30px;
-    height: 30px;
-    border: none;
-    background: transparent;
-    color: var(--text-tertiary);
-    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border-radius: 7px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 150ms, color 150ms;
+    transition: background 150ms, color 150ms, border-color 150ms;
     padding: 0;
+    flex-shrink: 0;
 }
 .btn-settings:hover {
-    background: var(--bg-surface-2);
-    color: var(--text-secondary);
+    background: var(--bg-surface-3);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
 }
 
 /* ── IDLE 安心訊號（returning 變體） ────────────────────── */
