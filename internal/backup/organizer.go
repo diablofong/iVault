@@ -17,11 +17,17 @@ type Organizer struct {
 	organizeByDate bool
 }
 
-// NewOrganizer 建立 Organizer；deviceFolder 格式為 "{deviceName} ({udid前8碼})"
-func NewOrganizer(backupPath, deviceName, udid string, organizeByDate bool) *Organizer {
+// NewOrganizer 建立 Organizer。
+// overrideFolderName 非空時直接使用（來自 DeviceConfig.FolderName，確保換名後路徑不變）；
+// 為空時用 folderName(deviceName, udid) 計算（向後相容）。
+func NewOrganizer(backupPath, deviceName, udid, overrideFolderName string, organizeByDate bool) *Organizer {
+	folder := overrideFolderName
+	if folder == "" {
+		folder = folderName(deviceName, udid)
+	}
 	return &Organizer{
 		backupPath:     backupPath,
-		deviceFolder:   folderName(deviceName, udid),
+		deviceFolder:   folder,
 		organizeByDate: organizeByDate,
 	}
 }

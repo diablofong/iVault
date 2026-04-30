@@ -105,7 +105,6 @@ func (a *App) GetDeviceDetail(udid string) (*device.DeviceDetail, error) {
 }
 
 // CheckTrustStatus 檢查裝置配對狀態
-// 嘗試 GetValues：成功 = 已信任，失敗 = 未信任
 func (a *App) CheckTrustStatus(udid string) (bool, error) {
 	deviceList, err := ios.ListDevices()
 	if err != nil {
@@ -120,9 +119,7 @@ func (a *App) CheckTrustStatus(udid string) (bool, error) {
 	return false, fmt.Errorf("device not found: %s", udid)
 }
 
-// TriggerTrustCheck 由前端「我已信任，繼續」按鈕觸發，立即查一次信任狀態，
-// 不等 polling tick。若已信任就同步 emit device:trust-changed，
-// 讓前端直接切到 READY；否則回傳 false 讓使用者得到明確回饋。
+// TriggerTrustCheck 由前端「我已信任，繼續」按鈕觸發，立即查一次信任狀態。
 func (a *App) TriggerTrustCheck(udid string) bool {
 	trusted, err := a.CheckTrustStatus(udid)
 	if err != nil || !trusted {
@@ -139,7 +136,7 @@ func (a *App) TriggerTrustCheck(udid string) bool {
 	return true
 }
 
-// CheckAppleDevicesInstalled Windows 專用：每次都做即時偵測（不用快取）
+// CheckAppleDevicesInstalled Windows 專用：每次都做即時偵測
 func (a *App) CheckAppleDevicesInstalled() bool {
 	return platform.RecheckAppleDevices()
 }
@@ -154,7 +151,7 @@ func (a *App) GetAutostart() bool {
 	return platform.GetAutostart()
 }
 
-// LaunchAppleDevices Windows：直接啟動 Apple Devices App（不透過 Store）
+// LaunchAppleDevices Windows：直接啟動 Apple Devices App
 func (a *App) LaunchAppleDevices() {
 	go platform.LaunchAppleDevices()
 }
@@ -180,7 +177,6 @@ func (a *App) GetBackupEstimate(udid string, backupPath string) (backup.BackupEs
 }
 
 // InstallAppleDevices Windows 專用：開啟 Microsoft Store Apple Devices 頁面
-// 安裝由使用者在 Store 完成後手動點「重新偵測」，不依賴自動偵測推進 UX。
 func (a *App) InstallAppleDevices() {
 	_ = platform.OpenURL("ms-windows-store://pdp/?productId=9NP83LWLPZ9K")
 }
@@ -207,20 +203,32 @@ func (a *App) SelectBackupFolder() string {
 
 // GetDefaultBackupPath 取得智慧預設備份路徑
 func (a *App) GetDefaultBackupPath() string {
-	// 優先使用上次備份路徑
-	if last := a.configMgr.Get().LastBackupPath; last != "" {
+	if last := a.configMgr.Get().DefaultBackupPath; last != "" {
 		return last
 	}
 	return platform.GetDefaultBackupPath()
 }
 
+// GetBackupFolderSize 計算指定路徑（含子目錄）的總佔用空間（bytes）
+func (a *App) GetBackupFolderSize(path string) int64 {
+	if path == "" {
+		return 0
+	}
+	var total int64
+	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err == nil && !info.IsDir() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
+}
+
 // CheckBackupPath 進入 READY 頁前呼叫：確認備份路徑是否仍有效。
-// path 為前端當前 selectedPath；空字串時 fallback 到 config 的 LastBackupPath。
-// 若路徑存在但磁碟上找不到（外接硬碟未插），emit backup:path-missing。
 func (a *App) CheckBackupPath(path string) {
 	checkPath := path
 	if checkPath == "" {
-		checkPath = a.configMgr.Get().LastBackupPath
+		checkPath = a.configMgr.Get().DefaultBackupPath
 	}
 	if checkPath == "" {
 		return
@@ -232,9 +240,7 @@ func (a *App) CheckBackupPath(path string) {
 	}
 }
 
-// ManifestExists 檢查備份路徑下是否存有指定裝置的 manifest（斷點記錄）
-// 前端用來判斷「全部已是最新」是否還有效：若備份資料夾被刪，manifest 消失，
-// 就不該再顯示「全部已是最新」，避免誤導使用者。
+// ManifestExists 檢查備份路徑下是否存有指定裝置的 manifest
 func (a *App) ManifestExists(backupPath, udid string) bool {
 	return backup.ManifestExists(backupPath, udid)
 }
@@ -268,10 +274,30 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 	ctx, cancel := context.WithCancel(a.ctx)
 	a.backupCancel = cancel
 
-	// 儲存備份路徑到 config
-	current := a.configMgr.Get()
-	current.LastBackupPath = cfg.BackupPath
-	_ = a.configMgr.Save(current)
+	// 從 DeviceConfig 取得 FolderName（確保換名後資料夾路徑不變）
+	appCfg := a.configMgr.Get()
+	if appCfg.Devices != nil {
+		if devCfg, ok := appCfg.Devices[cfg.DeviceUDID]; ok && devCfg.FolderName != "" {
+			cfg.FolderName = devCfg.FolderName
+		}
+	}
+	if cfg.FolderName == "" {
+		cfg.FolderName = config.BuildFolderName(cfg.DeviceName, cfg.DeviceUDID)
+	}
+
+	// 更新 DefaultBackupPath 與 per-device BackupPath
+	if appCfg.Devices == nil {
+		appCfg.Devices = make(map[string]*config.DeviceConfig)
+	}
+	if _, ok := appCfg.Devices[cfg.DeviceUDID]; !ok {
+		appCfg.Devices[cfg.DeviceUDID] = &config.DeviceConfig{
+			Name:       cfg.DeviceName,
+			FolderName: cfg.FolderName,
+		}
+	}
+	appCfg.Devices[cfg.DeviceUDID].BackupPath = cfg.BackupPath
+	appCfg.DefaultBackupPath = cfg.BackupPath
+	_ = a.configMgr.Save(appCfg)
 
 	platform.PreventSleep() // AD: 備份中阻止系統睡眠
 
@@ -281,13 +307,15 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 	engine := backup.NewEngine(cfg, emitFn)
 
 	go func() {
-		defer platform.AllowSleep() // AD: 備份結束恢復睡眠
+		defer platform.AllowSleep()
 		result, err := engine.Run(ctx)
 		if err != nil && err != context.Canceled {
-			// 記錄中斷狀態
 			cur := a.configMgr.Get()
-			cur.LastInterrupted = true
-			cur.InterruptedDeviceUDID = cfg.DeviceUDID
+			if cur.Devices != nil {
+				if dev, ok := cur.Devices[cfg.DeviceUDID]; ok {
+					dev.LastInterrupted = true
+				}
+			}
 			_ = a.configMgr.Save(cur)
 
 			if be, ok := err.(*backup.BackupError); ok {
@@ -303,58 +331,47 @@ func (a *App) StartBackup(cfg backup.BackupConfig) error {
 		}
 		if result != nil {
 			if result.Interrupted {
-				// 中斷：更新 config 中斷旗標與進度
 				cur := a.configMgr.Get()
-				cur.LastInterrupted = true
-				cur.InterruptedDone = result.InterruptedDone
-				cur.InterruptedTotal = result.InterruptedTotal
-				cur.InterruptedDeviceUDID = cfg.DeviceUDID
+				if cur.Devices != nil {
+					if dev, ok := cur.Devices[cfg.DeviceUDID]; ok {
+						dev.LastInterrupted = true
+						dev.InterruptedDone = result.InterruptedDone
+						dev.InterruptedTotal = result.InterruptedTotal
+					}
+				}
 				_ = a.configMgr.Save(cur)
 				wailsRuntime.EventsEmit(a.ctx, "backup:interrupted", result)
 				return
 			}
 
-			// 成功完成：清除中斷旗標
+			// 成功完成：更新 DeviceConfig
 			cur := a.configMgr.Get()
-			cur.LastInterrupted = false
-			cur.InterruptedDone = 0
-			cur.InterruptedTotal = 0
-			cur.InterruptedDeviceUDID = ""
-			if !cur.FirstBackupDone {
-				cur.FirstBackupDone = true
+			if cur.Devices == nil {
+				cur.Devices = make(map[string]*config.DeviceConfig)
 			}
-			alreadyDone := false
-			for _, uid := range cur.FirstBackupDoneDevices {
-				if uid == cfg.DeviceUDID {
-					alreadyDone = true
-					break
+			if _, ok := cur.Devices[cfg.DeviceUDID]; !ok {
+				cur.Devices[cfg.DeviceUDID] = &config.DeviceConfig{
+					Name:       cfg.DeviceName,
+					FolderName: cfg.FolderName,
+					BackupPath: cfg.BackupPath,
 				}
 			}
-			if !alreadyDone && cfg.DeviceUDID != "" {
-				cur.FirstBackupDoneDevices = append(cur.FirstBackupDoneDevices, cfg.DeviceUDID)
-			}
+			dev := cur.Devices[cfg.DeviceUDID]
+			dev.LastInterrupted = false
+			dev.InterruptedDone = 0
+			dev.InterruptedTotal = 0
+			dev.FirstBackupDone = true
+			dev.PhotosCount = result.PhotosCount
+			dev.VideosCount = result.VideosCount
+			dev.LastBackupDate = time.Now().Format(time.RFC3339)
 			_ = a.configMgr.Save(cur)
 
-			_ = a.configMgr.AddRecord(config.BackupRecord{
-				Date:        time.Now().Format(time.RFC3339),
-				DeviceName:  cfg.DeviceName,
-				DeviceUDID:  cfg.DeviceUDID,
-				NewFiles:    result.NewFiles,
-				PhotosCount: result.PhotosCount,
-				VideosCount: result.VideosCount,
-				Skipped:     result.SkippedFiles,
-				Failed:      result.FailedFiles,
-				TotalBytes:  result.TotalBytes,
-				Duration:    result.Duration,
-			})
-			// P: Toast 通知（非同步，不阻塞 event emit）
 			go platform.ShowToast(
 				"備份完成",
 				fmt.Sprintf("已備份 %d 張照片、%d 段影片", result.PhotosCount, result.VideosCount),
 			)
 			wailsRuntime.EventsEmit(a.ctx, "backup:complete", result)
 
-			// 若勾選了「轉存 JPEG」且備份結果含 HEIC，啟動轉檔（綁定 cancel context）
 			if cfg.ConvertHeic && result.HasHeic {
 				converter := heic.NewConverter(92, emitFn)
 				go converter.ConvertAll(ctx, cfg.BackupPath)
@@ -387,14 +404,12 @@ func (a *App) SaveConfig(cfg config.AppConfig) error {
 	return a.configMgr.Save(cfg)
 }
 
-// GetBackupHistory 取得備份歷史紀錄
+// GetBackupHistory 回傳備份歷史（legacy API，遷移後回傳空陣列）
 func (a *App) GetBackupHistory() []config.BackupRecord {
 	return a.configMgr.Get().History
 }
 
 // OpenFolder 用系統檔案管理員開啟指定資料夾。
-// 安全：必須為絕對本機路徑、不得為 UNC（\\host\share），且必須存在。
-// 阻擋的主要威脅是前端被注入後傳入 UNC 路徑觸發 SMB 連線而洩漏 NTLM hash。
 func (a *App) OpenFolder(path string) error {
 	if path == "" {
 		return fmt.Errorf("invalid path")
@@ -402,8 +417,6 @@ func (a *App) OpenFolder(path string) error {
 	if strings.HasPrefix(path, `\\`) || strings.HasPrefix(path, "//") {
 		return fmt.Errorf("UNC path not allowed")
 	}
-	// Defense-in-depth：Windows explorer.exe 把逗號解析為 flag 分隔字元，
-	// 即便路徑實際存在也可能被用來附加隱藏 flag。阻擋含逗號的路徑。
 	if strings.ContainsRune(path, ',') {
 		return fmt.Errorf("path contains invalid character")
 	}
@@ -416,9 +429,7 @@ func (a *App) OpenFolder(path string) error {
 	return platform.OpenFolder(path)
 }
 
-// OpenURL 用系統瀏覽器開啟 URL。
-// 安全：只允許 http(s) scheme，避免前端傳入 file://、ms-settings:、javascript: 等
-// 會被 Windows FileProtocolHandler 解析成本機操作的 URI。
+// OpenURL 用系統瀏覽器開啟 URL（只允許 http/https）。
 func (a *App) OpenURL(url string) error {
 	if !strings.HasPrefix(url, "https://") && !strings.HasPrefix(url, "http://") {
 		return fmt.Errorf("only http/https URLs are allowed")
@@ -431,21 +442,15 @@ func (a *App) OpenURL(url string) error {
 // ============================================================
 
 // watchDevices 使用 ios.Listen() 監聽裝置熱插拔事件。
-// Windows 上若 Apple Devices 未安裝，ios.Listen() 會靜默失敗；
-// 此函式主動偵測並透過事件通知前端，同時持續輪詢直到驅動裝好。
 func (a *App) watchDevices() {
 	driverWasMissing := false
-	amdsFailNotified := false // 避免重複發同一個錯誤事件
+	amdsFailNotified := false
 
 	for {
-		// Windows 專用：Apple Devices 前置條件檢查
 		if a.platformInfo != nil && a.platformInfo.OS == "windows" {
-			// [1] Driver 檢查（原有）
 			if !platform.RecheckAppleDevices() {
 				if !driverWasMissing {
-					// 等前端 ready 後再發事件（避免前端尚未掛載監聽器）
 					time.Sleep(600 * time.Millisecond)
-					// 嘗試 WMI 偵測 iPhone（驅動未裝仍可取得裝置名稱）
 					deviceName := platform.WMIDetectIPhone()
 					wailsRuntime.EventsEmit(a.ctx, "driver:required", map[string]any{
 						"deviceName": deviceName,
@@ -455,7 +460,6 @@ func (a *App) watchDevices() {
 				time.Sleep(3 * time.Second)
 				continue
 			}
-			// 驅動剛裝好（missing → available）
 			if driverWasMissing {
 				a.mu.Lock()
 				if a.platformInfo != nil {
@@ -466,10 +470,7 @@ func (a *App) watchDevices() {
 				driverWasMissing = false
 			}
 
-			// [2] AMDS 確認：確保 AppleMobileDeviceProcess.exe 已在 listening port 27015
-			// MS Store 版 Apple Devices 不像 iTunes 開機自動常駐，需手動喚起
 			if !platform.IsAMDSReady() {
-				// 通知前端：即將喚起 Apple Devices UI，讓使用者有心理準備
 				wailsRuntime.EventsEmit(a.ctx, "amds:starting", nil)
 			}
 			if err := platform.EnsureAMDSRunning(); err != nil {
@@ -487,12 +488,10 @@ func (a *App) watchDevices() {
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			amdsFailNotified = false // 成功後 reset，未來若再失敗可以重新通知
+			amdsFailNotified = false
 		}
 
-		// [3] 裝置監聽（原有）
 		a.runDeviceListener()
-		// listener 斷掉（usbmuxd 重啟、裝置拔除等）→ 等 3 秒後重試
 		time.Sleep(3 * time.Second)
 	}
 }
@@ -504,7 +503,6 @@ func (a *App) runDeviceListener() {
 	}
 	defer closeFunc()
 
-	// 建立 DeviceID → UDID 映射（Detached 訊息只有 DeviceID）
 	idToUDID := make(map[int]string)
 
 	for {
@@ -520,7 +518,6 @@ func (a *App) runDeviceListener() {
 			}
 			idToUDID[msg.DeviceID] = udid
 
-			// 取得裝置名稱
 			info := device.DeviceInfo{UDID: udid}
 			if values, err := ios.GetValues(msg.DeviceEntry()); err == nil {
 				info.Name = values.Value.DeviceName
@@ -533,9 +530,11 @@ func (a *App) runDeviceListener() {
 			a.connectedDevice = &info
 			a.mu.Unlock()
 
+			// 確保 DeviceConfig 存在（建立 FolderName）
+			a.ensureDeviceConfig(udid, info.Name)
+
 			wailsRuntime.EventsEmit(a.ctx, "device:connected", info)
 
-			// 若未信任，啟動信任輪詢
 			if !info.Trusted {
 				a.startTrustPolling(udid)
 			}
@@ -559,8 +558,26 @@ func (a *App) runDeviceListener() {
 	}
 }
 
+// ensureDeviceConfig 確保指定裝置有 DeviceConfig；若尚無則建立並儲存。
+// 已存在時不覆蓋（保護不可變的 FolderName）。
+func (a *App) ensureDeviceConfig(udid, name string) {
+	if udid == "" {
+		return
+	}
+	cur := a.configMgr.Get()
+	if cur.Devices == nil {
+		cur.Devices = make(map[string]*config.DeviceConfig)
+	}
+	if _, exists := cur.Devices[udid]; !exists {
+		cur.Devices[udid] = &config.DeviceConfig{
+			Name:       name,
+			FolderName: config.BuildFolderName(name, udid),
+		}
+		_ = a.configMgr.Save(cur)
+	}
+}
+
 // startTrustPolling 每 1 秒輪詢信任狀態，60 秒超時後 emit trust:timeout。
-// 使用者按「我已信任」按鈕會另外走 TriggerTrustCheck 強制立即檢查，不等 tick。
 func (a *App) startTrustPolling(udid string) {
 	if a.trustCancel != nil {
 		a.trustCancel()
@@ -582,7 +599,7 @@ func (a *App) startTrustPolling(udid string) {
 			case <-ticker.C:
 				trusted, err := a.CheckTrustStatus(udid)
 				if err != nil {
-					return // 裝置已斷線
+					return
 				}
 				if trusted {
 					a.mu.Lock()

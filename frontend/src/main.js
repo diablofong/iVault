@@ -12,6 +12,7 @@ import {
     SelectBackupFolder,
     GetDefaultBackupPath,
     GetDiskInfo,
+    GetBackupFolderSize,
     ManifestExists,
     EstimateBackupSize,
     StartBackup,
@@ -37,6 +38,7 @@ const STATES = ['idle', 'device-found', 'trust-guide', 'ready', 'backing-up', 'd
 let currentState = null;
 let previousState = null;
 let currentDevice = null;
+let lastKnownUDID = null;
 let selectedPath = '';
 let backupResult = null;
 let platformInfo = null;
@@ -59,18 +61,15 @@ function setState(newState, data = {}) {
         document.getElementById(`view-${currentState}`)?.classList.remove('active');
     }
 
-    // 離開 trust-guide 時清除提示計時器
     if (currentState === 'trust-guide') {
         if (trustHintTimer) { clearTimeout(trustHintTimer); trustHintTimer = null; }
         if (trustHardHintTimer) { clearTimeout(trustHardHintTimer); trustHardHintTimer = null; }
     }
 
-    // 離開 ready 時清除自動備份倒數
     if (currentState === 'ready') {
         clearAutoCountdown();
     }
 
-    // AMDS 提示只在 IDLE 時有效
     if (newState !== 'idle') {
         const amdsEl = document.getElementById('amds-status');
         if (amdsEl) amdsEl.style.display = 'none';
@@ -100,7 +99,6 @@ function onEnterState(state, data) {
 // ============================================================
 async function init() {
     document.getElementById('btn-minimize')?.addEventListener('click', () => WindowMinimise());
-    // E: 備份中保護關閉
     document.getElementById('btn-close')?.addEventListener('click', async () => {
         if (currentState === 'backing-up') {
             const lang = getLang();
@@ -124,13 +122,19 @@ async function init() {
         console.error('init:', e);
     }
 
+    // 從 config 推斷 lastKnownUDID（供 IDLE 變體使用）
+    const lastKnown = getLastKnownDeviceConfig();
+    if (lastKnown) lastKnownUDID = lastKnown.udid;
+
     renderAll();
     registerEvents();
     bindHandlers();
 
-    // X: 首次啟動引導（有歷史紀錄的舊用戶升級 → 靜默跳過引導）
+    // X: 首次啟動引導
     if (!appConfig?.onboardingDone) {
-        if (appConfig?.history?.length > 0) {
+        const hasDevices = Object.keys(appConfig?.devices ?? {}).length > 0;
+        const hasHistory = (appConfig?.history?.length ?? 0) > 0;
+        if (hasDevices || hasHistory) {
             // 舊用戶升級：靜默標記完成
             if (appConfig) {
                 appConfig.onboardingDone = true;
@@ -158,6 +162,7 @@ async function init() {
         const dev = await GetConnectedDevice();
         if (dev && dev.udid) {
             currentDevice = dev;
+            lastKnownUDID = dev.udid;
             setState('device-found', dev);
         } else {
             setState('idle');
@@ -173,6 +178,7 @@ async function init() {
 function registerEvents() {
     EventsOn('device:connected', (info) => {
         currentDevice = info;
+        lastKnownUDID = info.udid;
         setState('device-found', info);
     });
 
@@ -185,7 +191,6 @@ function registerEvents() {
 
     EventsOn('device:trust-changed', (data) => {
         if (data.trusted && currentState === 'trust-guide') {
-            // C: 短暫顯示確認動畫再自動推進
             const btn = document.getElementById('btn-trust-recheck');
             if (btn) {
                 btn.textContent = '✓ ' + (getLang() === 'zh-TW' ? '已信任' : 'Trusted');
@@ -206,7 +211,6 @@ function registerEvents() {
     });
 
     EventsOn('backup:progress', (progress) => {
-        // AC: 啟動長備份安撫計時器（首次收到進度時）
         if (!backupStartTime) {
             backupStartTime = Date.now();
             startComfortTimer();
@@ -218,43 +222,50 @@ function registerEvents() {
         backupStartTime = null;
         if (comfortTimer) { clearInterval(comfortTimer); comfortTimer = null; }
         backupResult = result;
-        // 更新前端 appConfig 快取，避免回 READY 時顯示舊歷史
+
+        // 更新 appConfig.devices（但 firstBackupDone 留給 onEnterDone 先讀後才設）
         if (appConfig) {
-            appConfig.lastInterrupted = false;
-            appConfig.interruptedDeviceUdid = '';
-            appConfig.firstBackupDone = true;
             const uid = currentDevice?.udid || '';
-            if (uid && !(appConfig.firstBackupDoneDevices ?? []).includes(uid)) {
-                appConfig.firstBackupDoneDevices = [...(appConfig.firstBackupDoneDevices ?? []), uid];
+            if (uid) {
+                if (!appConfig.devices) appConfig.devices = {};
+                if (!appConfig.devices[uid]) appConfig.devices[uid] = { name: currentDevice?.name || 'iPhone' };
+                const devCfg = appConfig.devices[uid];
+                devCfg.lastInterrupted = false;
+                devCfg.interruptedDone = 0;
+                devCfg.interruptedTotal = 0;
+                devCfg.photosCount = result.photosCount ?? 0;
+                devCfg.videosCount = result.videosCount ?? 0;
+                devCfg.lastBackupDate = new Date().toISOString();
+                // 注意：firstBackupDone 在 setState('done') 之後才設，
+                // 讓 onEnterDone 能正確判斷是否為首次備份
             }
-            appConfig.history = [{
-                date: new Date().toISOString(),
-                deviceName: currentDevice?.name || 'iPhone',
-                deviceUdid: currentDevice?.udid || '',
-                photosCount: result.photosCount ?? 0,
-                videosCount: result.videosCount ?? 0,
-                newFiles: result.newFiles ?? 0,
-                skipped: result.skippedFiles ?? 0,
-                failed: result.failedFiles ?? 0,
-                totalBytes: result.totalBytes ?? 0,
-                duration: result.duration || '',
-            }, ...(appConfig.history ?? [])];
         }
+
         setState('done', result);
-        // P: 備份完成靜默最小化（延遲 800ms 讓用戶短暫看到 DONE 畫面）
+
+        // onEnterDone 讀完 firstBackupDone 後再更新
+        if (appConfig) {
+            const uid = currentDevice?.udid || '';
+            if (uid && appConfig.devices?.[uid]) {
+                appConfig.devices[uid].firstBackupDone = true;
+            }
+        }
+
         setTimeout(() => WindowMinimise(), 800);
     });
 
     EventsOn('backup:interrupted', (result) => {
         backupStartTime = null;
         if (comfortTimer) { clearInterval(comfortTimer); comfortTimer = null; }
-        // 取消後若 iPhone 仍插著 → 直接回 READY，不繞 IDLE
         if (appConfig) {
-            appConfig.lastInterrupted = true;
-            appConfig.interruptedDeviceUdid = currentDevice?.udid || '';
-            if (result) {
-                appConfig.interruptedDone = result.interruptedDone ?? 0;
-                appConfig.interruptedTotal = result.interruptedTotal ?? 0;
+            const uid = currentDevice?.udid || '';
+            if (uid) {
+                if (!appConfig.devices) appConfig.devices = {};
+                if (!appConfig.devices[uid]) appConfig.devices[uid] = {};
+                const devCfg = appConfig.devices[uid];
+                devCfg.lastInterrupted = true;
+                devCfg.interruptedDone = result?.interruptedDone ?? 0;
+                devCfg.interruptedTotal = result?.interruptedTotal ?? 0;
             }
         }
         if (currentDevice?.udid) {
@@ -268,8 +279,12 @@ function registerEvents() {
         backupStartTime = null;
         if (comfortTimer) { clearInterval(comfortTimer); comfortTimer = null; }
         if (appConfig) {
-            appConfig.lastInterrupted = true;
-            appConfig.interruptedDeviceUdid = currentDevice?.udid || '';
+            const uid = currentDevice?.udid || '';
+            if (uid) {
+                if (!appConfig.devices) appConfig.devices = {};
+                if (!appConfig.devices[uid]) appConfig.devices[uid] = {};
+                appConfig.devices[uid].lastInterrupted = true;
+            }
         }
         if (currentState === 'backing-up') {
             setState('error', err);
@@ -277,7 +292,6 @@ function registerEvents() {
     });
 
     EventsOn('driver:required', () => {
-        // H: 早期警告 banner，不強制換頁；onboarding 進行中不覆蓋
         setDriverBanner(true);
         if (currentState !== 'idle' && currentState !== 'onboarding') setState('idle');
     });
@@ -384,13 +398,11 @@ function bindHandlers() {
         try {
             const ok = await TriggerTrustCheck(currentDevice.udid);
             if (!ok) {
-                // 仍未偵測到：震一下按鈕 + 立即顯示強力提示
                 btn.classList.add('shake');
                 setTimeout(() => btn.classList.remove('shake'), 600);
                 const h = document.getElementById('trust-hard-hint');
                 if (h) h.style.display = '';
             }
-            // 若 ok，後端會 emit device:trust-changed，現有 handler 會切 ready
         } catch (err) {
             console.error('TriggerTrustCheck failed', err);
         } finally {
@@ -409,8 +421,7 @@ function bindHandlers() {
     document.getElementById('btn-open-folder')?.addEventListener('click', () => {
         if (backupResult?.backupPath) OpenFolder(backupResult.backupPath);
     });
-document.getElementById('btn-backup-again')?.addEventListener('click', () => {
-        // iPhone 仍插著 → 直接回 READY，不需要重新連接
+    document.getElementById('btn-backup-again')?.addEventListener('click', () => {
         if (currentDevice?.udid) {
             setState('ready', currentDevice);
         } else {
@@ -445,16 +456,18 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
             setState('ready', currentDevice || {});
         } catch (e) {}
     });
+
+    // IDLE 開啟資料夾
     document.getElementById('btn-idle-open-folder')?.addEventListener('click', () => {
-        const path = appConfig?.lastBackupPath;
+        const path = getDeviceBackupPath(lastKnownUDID);
         if (path) OpenFolder(path);
     });
     document.getElementById('btn-idle-open-folder-first')?.addEventListener('click', () => {
-        const path = appConfig?.lastBackupPath;
+        const path = getDeviceBackupPath(lastKnownUDID);
         if (path) OpenFolder(path);
     });
     document.getElementById('btn-idle-open-folder-interrupted')?.addEventListener('click', () => {
-        const path = appConfig?.lastBackupPath;
+        const path = getDeviceBackupPath(lastKnownUDID);
         if (path) OpenFolder(path);
     });
 
@@ -465,20 +478,20 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
         if (e.target === e.currentTarget) closeSettingsModal();
     });
     document.getElementById('btn-settings-open-folder')?.addEventListener('click', () => {
-        const path = appConfig?.lastBackupPath;
+        const path = appConfig?.defaultBackupPath;
         if (path) OpenFolder(path);
     });
     document.getElementById('btn-settings-change-path')?.addEventListener('click', async () => {
         try {
             const path = await SelectBackupFolder();
             if (!path) return;
-            selectedPath = path;
             if (appConfig) {
-                appConfig.lastBackupPath = path;
+                appConfig.defaultBackupPath = path;
                 try { await SaveConfig(appConfig); } catch (e) {}
             }
             const pathEl = document.getElementById('settings-path-value');
             if (pathEl) pathEl.textContent = path;
+            updateSettingsSize(path);
         } catch (e) {}
     });
     document.getElementById('settings-autostart-toggle')?.addEventListener('change', async (e) => {
@@ -516,7 +529,7 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
     });
     document.getElementById('btn-auto-skip')?.addEventListener('click', () => {
         clearAutoCountdown();
-        autoSnoozeActive = true; // 本次連線不再自動啟動
+        autoSnoozeActive = true;
     });
 
     // X: Onboarding 步驟按鈕
@@ -559,20 +572,25 @@ async function onEnterIdle() {
     const bannerBtn = document.getElementById('btn-driver-banner-install');
     if (bannerBtn) bannerBtn.disabled = false;
 
-    const cfg = appConfig;
-    const history = cfg?.history ?? [];
-    const isInterrupted = cfg?.lastInterrupted === true;
-    const isReturning = history.length > 0 && !isInterrupted;
+    // 決定要顯示哪台裝置的狀態
+    const udid = currentDevice?.udid ?? lastKnownUDID;
+    let devCfg = udid ? (appConfig?.devices?.[udid] ?? null) : null;
+    if (!devCfg && !udid) {
+        devCfg = getLastKnownDeviceConfig()?.cfg ?? null;
+    }
+    const backupPath = getDeviceBackupPath(udid ?? getLastKnownDeviceConfig()?.udid);
 
-    // 隱藏所有 variant
+    const isInterrupted = devCfg?.lastInterrupted === true;
+    const isReturning = devCfg !== null && devCfg !== undefined && !isInterrupted;
+
     document.getElementById('idle-variant-first').style.display = 'none';
     document.getElementById('idle-variant-returning').style.display = 'none';
     document.getElementById('idle-variant-interrupted').style.display = 'none';
 
     if (isInterrupted) {
         document.getElementById('idle-variant-interrupted').style.display = '';
-        const done = cfg?.interruptedDone ?? 0;
-        const total = cfg?.interruptedTotal ?? 0;
+        const done = devCfg?.interruptedDone ?? 0;
+        const total = devCfg?.interruptedTotal ?? 0;
         const infoEl = document.getElementById('idle-interrupted-info');
         if (infoEl) {
             const lang = getLang();
@@ -585,31 +603,24 @@ async function onEnterIdle() {
                 infoEl.textContent = t('idle.interrupted.progress');
             }
         }
-        // 驅動未安裝時，CTA 改為「先安裝 Apple Devices」，避免誤導用戶插 iPhone
         const ctaEl = document.querySelector('#idle-variant-interrupted .idle-cta');
         if (ctaEl) {
             const driverBanner = document.getElementById('driver-banner');
             const driverMissing = driverBanner && driverBanner.style.display !== 'none';
-            if (driverMissing) {
-                ctaEl.textContent = getLang() === 'zh-TW'
-                    ? '先安裝 Apple Devices，才能繼續備份'
-                    : 'Install Apple Devices first to resume backup';
-            } else {
-                ctaEl.textContent = t('idle.interrupted.cta');
-            }
+            ctaEl.textContent = driverMissing
+                ? (getLang() === 'zh-TW' ? '先安裝 Apple Devices，才能繼續備份' : 'Install Apple Devices first to resume backup')
+                : t('idle.interrupted.cta');
         }
         const interruptedFolderBtn = document.getElementById('btn-idle-open-folder-interrupted');
-        if (interruptedFolderBtn) interruptedFolderBtn.style.display = cfg?.lastBackupPath ? '' : 'none';
+        if (interruptedFolderBtn) interruptedFolderBtn.style.display = backupPath ? '' : 'none';
+
     } else if (isReturning) {
-        // E-13: 確認 manifest 存在，避免資料夾被刪後還顯示 returning 變體
-        const rec = history[0];
-        const backupPath = cfg?.lastBackupPath || '';
-        const backupUdid = rec?.deviceUdid || '';
+        const backupUdid = udid ?? getLastKnownDeviceConfig()?.udid ?? '';
         let manifestOk = false;
         if (backupPath && backupUdid) {
             try { manifestOk = await ManifestExists(backupPath, backupUdid); } catch (e) {}
         } else {
-            manifestOk = true; // 無法驗證時樂觀顯示（避免舊版 config 無 udid 欄位的使用者倒退）
+            manifestOk = true;
         }
         if (!manifestOk) {
             document.getElementById('idle-variant-first').style.display = '';
@@ -617,14 +628,14 @@ async function onEnterIdle() {
         }
         document.getElementById('idle-variant-returning').style.display = '';
         const folderBtn = document.getElementById('btn-idle-open-folder');
-        if (folderBtn) folderBtn.style.display = cfg?.lastBackupPath ? '' : 'none';
-        const dateStr = formatRelativeDate(rec.date);
-        const photos = rec.photosCount ?? 0;
-        const videos = rec.videosCount ?? 0;
-        const deviceLabel = rec.deviceName || 'iPhone';
+        if (folderBtn) folderBtn.style.display = backupPath ? '' : 'none';
+
+        const dateStr = formatRelativeDate(devCfg?.lastBackupDate);
+        const photos = devCfg?.photosCount ?? 0;
+        const videos = devCfg?.videosCount ?? 0;
+        const deviceLabel = devCfg?.name || 'iPhone';
         const lang = getLang();
 
-        // ✓ 安心訊號：主角是「已安全備份 · 日期」
         const checkLabel = document.getElementById('idle-check-label');
         if (checkLabel) {
             checkLabel.textContent = lang === 'zh-TW'
@@ -632,7 +643,6 @@ async function onEnterIdle() {
                 : `Safely backed up · ${dateStr}`;
         }
 
-        // 差量文案：上次新增幾張（per-session，非累計）
         const infoEl = document.getElementById('idle-last-backup-info');
         if (infoEl) {
             if (photos === 0 && videos === 0) {
@@ -648,7 +658,7 @@ async function onEnterIdle() {
     } else {
         document.getElementById('idle-variant-first').style.display = '';
         const firstFolderBtn = document.getElementById('btn-idle-open-folder-first');
-        if (firstFolderBtn) firstFolderBtn.style.display = cfg?.lastBackupPath ? '' : 'none';
+        if (firstFolderBtn) firstFolderBtn.style.display = backupPath ? '' : 'none';
     }
 }
 
@@ -681,19 +691,16 @@ async function onEnterDeviceFound(info) {
 }
 
 function onEnterTrustGuide() {
-    // 重設兩層提示
     const slow = document.getElementById('trust-slow-hint');
     if (slow) slow.style.display = 'none';
     const hard = document.getElementById('trust-hard-hint');
     if (hard) hard.style.display = 'none';
 
-    // 10 秒後淡入次要提示（手機可能沒解鎖）
     trustHintTimer = setTimeout(() => {
         const h = document.getElementById('trust-slow-hint');
         if (h && currentState === 'trust-guide') h.style.display = '';
     }, 10000);
 
-    // 15 秒後顯示強力提示（請拔插 USB）
     trustHardHintTimer = setTimeout(() => {
         const h = document.getElementById('trust-hard-hint');
         if (h && currentState === 'trust-guide') h.style.display = '';
@@ -703,8 +710,14 @@ function onEnterTrustGuide() {
 async function onEnterReady(info) {
     setEl('ready-device-name', info.name || 'iPhone');
 
+    // 取得 per-device 備份路徑（優先），或全域預設
     if (!selectedPath) {
-        try { selectedPath = await GetDefaultBackupPath(); } catch (e) {}
+        const devCfg = appConfig?.devices?.[info.udid];
+        if (devCfg?.backupPath) {
+            selectedPath = devCfg.backupPath;
+        } else {
+            try { selectedPath = await GetDefaultBackupPath(); } catch (e) {}
+        }
     }
     setEl('backup-path', selectedPath || '-');
     const pathEl = document.getElementById('backup-path');
@@ -717,41 +730,43 @@ async function onEnterReady(info) {
 
     await updateLastBackupRow(selectedPath, info.udid);
 
+    // 增量備份提示：有備份記錄才顯示
+    const devCfg = appConfig?.devices?.[info.udid];
     const incrementalHint = document.getElementById('ready-incremental-hint');
     if (incrementalHint) {
-        incrementalHint.style.display = (appConfig?.history?.length > 0) ? '' : 'none';
+        incrementalHint.style.display = devCfg?.lastBackupDate ? '' : 'none';
     }
+
+    // 通用機名提示
+    const nameHint = document.getElementById('ready-name-hint');
+    if (nameHint) {
+        nameHint.style.display = (info.name === 'iPhone' || info.name === 'iPhone') ? '' : 'none';
+    }
+
+    // 路徑變更說明預設隱藏
+    const pathNote = document.getElementById('ready-path-note');
+    if (pathNote) pathNote.style.display = 'none';
 
     try { CheckBackupPath(selectedPath || ''); } catch (e) {}
 
-    // R/S: 最大單檔 + 新檔數（用 GetBackupEstimate 取代 EstimateBackupSize）
     if (info.udid && selectedPath) estimateFull(info.udid, selectedPath);
 
     // 自動備份規則：回訪用戶從 device-found 進入 ready → 3 秒倒數
-    // 以當前設備的 UDID 過濾歷史，避免 Device B 觸發 Device A 的回訪倒數
-    const deviceHistory = (appConfig?.history ?? []).filter(h => h.deviceUdid === info.udid);
-    const isCurrentDeviceInterrupted = appConfig?.lastInterrupted &&
-        (!appConfig?.interruptedDeviceUdid || appConfig.interruptedDeviceUdid === info.udid);
-    const isReturning = deviceHistory.length > 0 && !isCurrentDeviceInterrupted;
+    const isInterrupted = devCfg?.lastInterrupted === true;
+    const isReturning = devCfg?.lastBackupDate && !isInterrupted;
     const fromDevice = previousState === 'device-found';
     if (isReturning && fromDevice && !autoSnoozeActive) {
         startAutoCountdown();
     }
 }
 
-// updateLastBackupRow 以正確的優先順序更新 READY 頁的 last-backup-row：
-// 1. manifest 不在（資料夾被刪/換路徑）→「尚未備份過」（lastInterrupted 一律忽略）
-// 2. manifest 在 + lastInterrupted → 顯示中斷狀態
-// 3. manifest 在 + 依 UDID 過濾的 history 紀錄：
-//    - photos+videos === 0 且 estimateSize > 0 → 不顯示「全部已是最新」（E-12）
-//    - 否則依正常邏輯顯示
-// 4. 其他 →「尚未備份過」
+// updateLastBackupRow 更新 READY 頁的 last-backup-row
 async function updateLastBackupRow(path, udid) {
     const lastBackupRow = document.getElementById('last-backup-row');
     const lastBackupInfo = document.getElementById('last-backup-info');
     if (!lastBackupRow || !lastBackupInfo) return;
 
-    // Step 1: manifest check（E-6 / E-7）
+    // Step 1: manifest check
     let manifestOk = false;
     if (path && udid) {
         try { manifestOk = await ManifestExists(path, udid); } catch (e) {}
@@ -763,12 +778,12 @@ async function updateLastBackupRow(path, udid) {
         return;
     }
 
-    // Step 2: lastInterrupted，只在中斷的設備是當前設備時才顯示（E-6）
-    const isCurrentInterrupted = appConfig?.lastInterrupted &&
-        (!appConfig?.interruptedDeviceUdid || appConfig.interruptedDeviceUdid === udid);
-    if (isCurrentInterrupted) {
-        const done = appConfig.interruptedDone ?? 0;
-        const total = appConfig.interruptedTotal ?? 0;
+    const devCfg = appConfig?.devices?.[udid];
+
+    // Step 2: per-device interrupted
+    if (devCfg?.lastInterrupted === true) {
+        const done = devCfg?.interruptedDone ?? 0;
+        const total = devCfg?.interruptedTotal ?? 0;
         const lang = getLang();
         let infoText;
         if (done > 0 && total > 0) {
@@ -783,28 +798,25 @@ async function updateLastBackupRow(path, udid) {
         return;
     }
 
-    // Step 3: UDID 過濾的 history（E-8）
-    const history = appConfig?.history ?? [];
-    const rec = udid ? history.find(h => h.deviceUdid === udid) : history[0];
-    if (!rec) {
+    // Step 3: per-device backup date
+    if (!devCfg?.lastBackupDate) {
         lastBackupInfo.textContent = t('ready.no_backup');
         lastBackupRow.style.display = '';
         return;
     }
 
-    const dateStr = formatRelativeDate(rec.date);
-    const photos = rec.photosCount ?? 0;
-    const videos = rec.videosCount ?? 0;
+    const dateStr = formatRelativeDate(devCfg.lastBackupDate);
+    const photos = devCfg.photosCount ?? 0;
+    const videos = devCfg.videosCount ?? 0;
     const lang = getLang();
 
     if (photos === 0 && videos === 0) {
-        // E-12: estimateSize > 0 時不顯示「全部已是最新」
         let estimateBytes = 0;
         if (path && udid) {
             try { estimateBytes = await EstimateBackupSize(udid, path); } catch (e) {}
         }
         if (estimateBytes > 0) {
-            lastBackupInfo.textContent = dateStr; // 有新檔待備份，不加「全部已是最新」
+            lastBackupInfo.textContent = dateStr;
         } else {
             lastBackupInfo.textContent = lang === 'zh-TW'
                 ? `${dateStr} · 全部已是最新`
@@ -823,52 +835,39 @@ function onEnterDone(result) {
     if (bannerBtn) bannerBtn.disabled = false;
 
     const currentUdid = currentDevice?.udid || '';
-    const doneDevices = appConfig?.firstBackupDoneDevices ?? [];
-    const isFirst = currentUdid
-        ? !doneDevices.includes(currentUdid)
-        : !(appConfig?.firstBackupDone);
+    const devCfg = currentUdid ? (appConfig?.devices?.[currentUdid] ?? null) : null;
+    const isFirst = devCfg ? !devCfg.firstBackupDone : true;
     const photos = result.photosCount ?? 0;
     const videos = result.videosCount ?? 0;
 
-    // 主標兩版
     const lang = getLang();
     let mainTitle;
     if (isFirst) {
-        if (lang === 'zh-TW') {
-            mainTitle = `你的 ${fmt(photos)} 張照片和 ${fmt(videos)} 段影片安全了`;
-        } else {
-            mainTitle = `Your ${fmt(photos)} photos and ${fmt(videos)} videos are safe`;
-        }
+        mainTitle = lang === 'zh-TW'
+            ? `你的 ${fmt(photos)} 張照片和 ${fmt(videos)} 段影片安全了`
+            : `Your ${fmt(photos)} photos and ${fmt(videos)} videos are safe`;
     } else {
-        const newPhotos = result.photosCount ?? 0;
-        const newVideos = result.videosCount ?? 0;
-        if (lang === 'zh-TW') {
-            mainTitle = `新增 ${fmt(newPhotos)} 張照片和 ${fmt(newVideos)} 段影片`;
-        } else {
-            mainTitle = `${fmt(newPhotos)} new photos and ${fmt(newVideos)} new videos added`;
-        }
+        mainTitle = lang === 'zh-TW'
+            ? `新增 ${fmt(photos)} 張照片和 ${fmt(videos)} 段影片`
+            : `${fmt(photos)} new photos and ${fmt(videos)} new videos added`;
     }
     setEl('done-main-title', mainTitle);
 
-    // 副標
     const now = new Date();
     const dateStr = lang === 'zh-TW'
         ? `${now.getMonth() + 1} 月 ${now.getDate()} 日`
         : now.toLocaleDateString('en', { month: 'long', day: 'numeric' });
     setEl('done-subtitle', t('done.subtitle').replace('{date}', dateStr));
 
-    // 首次彩蛋
     const eggEl = document.getElementById('done-first-egg');
     if (eggEl) eggEl.style.display = isFirst ? '' : 'none';
 
-    // Bento 四格
     setEl('done-photos-count', fmt(photos));
     setEl('done-videos-count', fmt(videos));
     const totalSizeEl = document.getElementById('done-total-size-value');
     if (totalSizeEl) totalSizeEl.textContent = result.totalBytes > 0 ? formatBytes(result.totalBytes) : '-';
     setEl('done-duration-value', result.duration || '-');
 
-    // 失敗清單
     const failedSection = document.getElementById('failed-section');
     const failedList = document.getElementById('failed-list');
     const failedCount = result.failedFiles ?? 0;
@@ -886,19 +885,16 @@ function onEnterDone(result) {
         });
     }
 
-    // 未知日期警告
     const unknownSection = document.getElementById('unknown-date-section');
     const unknownText = document.getElementById('unknown-date-text');
     const unknownCount = result.unknownDateCount ?? 0;
     if (unknownSection) unknownSection.style.display = unknownCount > 0 ? '' : 'none';
     if (unknownText && unknownCount > 0) {
-        const lang = getLang();
         unknownText.textContent = lang === 'zh-TW'
             ? `${fmt(unknownCount)} ${t('done.unknown_date_hint')}`
             : `${fmt(unknownCount)} ${t('done.unknown_date_hint')}`;
     }
 
-    // L: 備份路徑（三層設計）
     const donePathRow = document.getElementById('done-path-row');
     const donePath = document.getElementById('done-path');
     if (result.backupPath) {
@@ -908,13 +904,11 @@ function onEnterDone(result) {
         if (donePathRow) donePathRow.style.display = 'none';
     }
 
-    // Windows HEIC 提示
     const heicHint = document.getElementById('heic-hint');
     if (heicHint) {
         heicHint.style.display = (platformInfo?.os === 'windows' && result.hasHeic) ? '' : 'none';
     }
 
-    // 完成/繼續按鈕動態文案
     const backBtn = document.getElementById('btn-backup-again');
     if (backBtn) backBtn.textContent = currentDevice?.udid ? t('done.continue') : t('done.back');
 
@@ -954,16 +948,14 @@ function onEnterError(err) {
     const relocateBtn = document.getElementById('btn-relocate-folder');
     const amdsBtn = document.getElementById('btn-launch-amds');
 
-    // 重設按鈕狀態
     if (retryBtn) { retryBtn.style.display = ''; retryBtn.textContent = t('error.retry'); }
     if (issueBtn) issueBtn.style.display = 'none';
     if (relocateBtn) relocateBtn.style.display = 'none';
     if (amdsBtn) amdsBtn.style.display = 'none';
 
-    // BACKUP_PATH_MISSING → 顯示「選擇新資料夾」按鈕
     if (code === 'BACKUP_PATH_MISSING') {
         if (titleEl) titleEl.textContent = t('error.title');
-        const oldPath = appConfig?.lastBackupPath;
+        const oldPath = appConfig?.defaultBackupPath;
         setEl('error-message', oldPath
             ? `${t('error.BACKUP_PATH_MISSING')}\n${oldPath}`
             : t('error.BACKUP_PATH_MISSING'));
@@ -972,7 +964,6 @@ function onEnterError(err) {
         return;
     }
 
-    // DEVICE_DISCONNECTED → 1.5 秒後自動回 IDLE
     if (code === 'DEVICE_DISCONNECTED') {
         if (titleEl) titleEl.textContent = t('error.title');
         setEl('error-message', t('error.DEVICE_DISCONNECTED'));
@@ -981,7 +972,6 @@ function onEnterError(err) {
         return;
     }
 
-    // AMDS 失敗：I 差異化引導（未裝 vs 未啟動）
     if (code === 'AMDS_START_FAILED' || code === 'AMDS_TIMEOUT') {
         if (titleEl) titleEl.textContent = t('error.amds_title');
         setEl('error-message', t('error.amds_desc'));
@@ -990,14 +980,11 @@ function onEnterError(err) {
         return;
     }
 
-    // 其他錯誤碼：查 i18n 字典
     if (titleEl) titleEl.textContent = t('error.title');
     const localizedMsg = t(`error.${code}`);
     setEl('error-message', localizedMsg !== `error.${code}` ? localizedMsg : (err.message || t('error.unknown_fallback')));
 
     if (retryBtn) retryBtn.style.display = err.recoverable !== false ? '' : 'none';
-
-    // 只有真正未知的錯誤才顯示「回報問題」
     if (issueBtn) issueBtn.style.display = code === 'UNKNOWN_ERROR' ? '' : 'none';
 }
 
@@ -1017,7 +1004,6 @@ function setDriverBanner(show) {
 async function onEnterOnboarding() {
     const installed = platformInfo?.appleDevicesInstalled ?? false;
 
-    // 顯示步驟 1
     goToOnboardStep(1);
 
     if (installed) {
@@ -1028,7 +1014,6 @@ async function onEnterOnboarding() {
         document.getElementById('onboard-s1-missing').style.display = '';
     }
 
-    // 預設路徑（步驟 2 用）
     if (!selectedPath) {
         try { selectedPath = await GetDefaultBackupPath(); } catch (e) {}
     }
@@ -1046,9 +1031,9 @@ function goToOnboardStep(step) {
 async function completeOnboarding() {
     if (appConfig) {
         appConfig.onboardingDone = true;
+        if (selectedPath) appConfig.defaultBackupPath = selectedPath;
         try { await SaveConfig(appConfig); } catch (e) {}
     }
-    // Apple Devices 確認
     let installed = true;
     if (platformInfo?.os === 'windows') {
         try { installed = await CheckAppleDevicesInstalled(); } catch (e) {}
@@ -1058,11 +1043,11 @@ async function completeOnboarding() {
             return;
         }
     }
-    // 看有無裝置
     try {
         const dev = await GetConnectedDevice();
         if (dev && dev.udid) {
             currentDevice = dev;
+            lastKnownUDID = dev.udid;
             setState('device-found', dev);
         } else {
             setState('idle');
@@ -1073,7 +1058,7 @@ async function completeOnboarding() {
 }
 
 // ============================================================
-// 自動備份倒數（自動備份規則）
+// 自動備份倒數
 // ============================================================
 
 function startAutoCountdown() {
@@ -1112,7 +1097,7 @@ function clearAutoCountdown() {
 }
 
 // ============================================================
-// 進度更新（P1-2 故事感）
+// 進度更新
 // ============================================================
 
 function updateProgressUI(p) {
@@ -1124,7 +1109,6 @@ function updateProgressUI(p) {
     setEl('backup-speed', p.speedBps > 0 ? formatBytes(p.speedBps) + '/s' : '-');
     setEl('backup-eta', p.eta || '-');
 
-    // D: 故事感進度文字（依階段）
     const storyEl = document.getElementById('backup-current-story');
     if (storyEl) {
         const percent = p.percent ?? 0;
@@ -1165,14 +1149,33 @@ async function onSelectFolder() {
     try {
         const path = await SelectBackupFolder();
         if (!path) return;
+
+        // 記錄換路徑前的舊路徑
+        const devCfg = appConfig?.devices?.[currentDevice?.udid];
+        const prevPath = devCfg?.backupPath || appConfig?.defaultBackupPath || '';
+
         selectedPath = path;
         setEl('backup-path', path);
         const pathEl = document.getElementById('backup-path');
         if (pathEl) pathEl.title = path;
         updateDiskInfo(path);
+
+        // 儲存 per-device BackupPath
+        if (currentDevice?.udid && appConfig) {
+            if (!appConfig.devices) appConfig.devices = {};
+            if (!appConfig.devices[currentDevice.udid]) appConfig.devices[currentDevice.udid] = {};
+            appConfig.devices[currentDevice.udid].backupPath = path;
+            try { await SaveConfig(appConfig); } catch (e) {}
+        }
+
+        // 換路徑說明
+        const noteEl = document.getElementById('ready-path-note');
+        if (noteEl) {
+            noteEl.style.display = (prevPath && prevPath !== path) ? '' : 'none';
+        }
+
         if (currentDevice?.udid) {
             estimateSize(currentDevice.udid, path);
-            // E-9: 換路徑後重算 last-backup-row
             await updateLastBackupRow(path, currentDevice.udid);
         }
     } catch (e) {}
@@ -1205,6 +1208,34 @@ async function onStartBackup() {
 // 輔助函式
 // ============================================================
 
+/** 取得指定裝置的備份路徑（per-device 優先，否則用全域預設）*/
+function getDeviceBackupPath(udid) {
+    const devCfg = udid ? (appConfig?.devices?.[udid] ?? null) : null;
+    return devCfg?.backupPath || appConfig?.defaultBackupPath || '';
+}
+
+/** 找出 config 中最近使用的裝置（供 IDLE 無裝置時顯示狀態） */
+function getLastKnownDeviceConfig() {
+    const devices = appConfig?.devices;
+    if (!devices || Object.keys(devices).length === 0) return null;
+
+    // 優先：有中斷的裝置
+    for (const [udid, cfg] of Object.entries(devices)) {
+        if (cfg.lastInterrupted) return { udid, cfg };
+    }
+
+    // 次選：最近備份的裝置
+    let best = null;
+    for (const [udid, cfg] of Object.entries(devices)) {
+        if (cfg.lastBackupDate) {
+            if (!best || cfg.lastBackupDate > best.cfg.lastBackupDate) {
+                best = { udid, cfg };
+            }
+        }
+    }
+    return best;
+}
+
 async function fetchPhotoCount(udid) {
     try {
         const detail = await GetDeviceDetail(udid);
@@ -1235,7 +1266,6 @@ async function estimateSize(udid, path) {
     }
 }
 
-// R/S: 完整估算（含最大單檔）
 async function estimateFull(udid, path) {
     try {
         const est = await GetBackupEstimate(udid, path);
@@ -1251,6 +1281,16 @@ async function estimateFull(udid, path) {
     }
 }
 
+async function updateSettingsSize(path) {
+    const sizeEl = document.getElementById('settings-backup-size');
+    if (!sizeEl || !path) return;
+    sizeEl.textContent = '-';
+    try {
+        const size = await GetBackupFolderSize(path);
+        sizeEl.textContent = formatBytes(size);
+    } catch (e) {}
+}
+
 // AC: 長備份心理安撫計時器
 function startComfortTimer() {
     const messages = ['comfort_1', 'comfort_2', 'comfort_3', 'comfort_4'];
@@ -1263,19 +1303,20 @@ function startComfortTimer() {
             return;
         }
         const elapsed = (Date.now() - backupStartTime) / 1000;
-        // 2 分鐘後開始顯示安撫文案（不覆蓋掃描中文字）
         if (elapsed > 120 && hintEl) {
             hintEl.textContent = t(`backup.${messages[idx % messages.length]}`);
             idx++;
         }
-    }, 120000); // 每 2 分鐘換一條
+    }, 120000);
 }
 
 async function openSettingsModal() {
     const modal = document.getElementById('modal-settings');
     if (!modal) return;
+    const path = appConfig?.defaultBackupPath || '';
     const pathEl = document.getElementById('settings-path-value');
-    if (pathEl) pathEl.textContent = appConfig?.lastBackupPath || '-';
+    if (pathEl) pathEl.textContent = path || '-';
+    updateSettingsSize(path);
     try {
         const on = await GetAutostart();
         const toggle = document.getElementById('settings-autostart-toggle');

@@ -67,6 +67,7 @@
                             <button class="btn-icon" id="btn-onboard-choose-path" data-i18n="ready.choose">選擇</button>
                         </div>
                     </div>
+                    <p class="state-hint onboard-archive-hint" data-i18n="onboard.archive_hint"></p>
                     <button class="btn-primary" id="btn-onboard-s2-next" data-i18n="onboard.next">繼續</button>
                 </div>
                 <!-- 步驟 3：開機自動啟動 -->
@@ -214,6 +215,8 @@
             <div class="card">
                 <h2 id="ready-device-name">iPhone</h2>
                 <p class="state-desc" id="ready-photo-count"></p>
+                <!-- 通用機名提示（裝置名稱為預設「iPhone」時顯示） -->
+                <p class="state-hint ready-name-hint" id="ready-name-hint" style="display:none" data-i18n="ready.name_hint"></p>
 
                 <!-- 上次備份資訊 -->
                 <div class="last-backup-row" id="last-backup-row" style="display:none">
@@ -236,6 +239,9 @@
                         <span id="max-file-wrap"><span data-i18n="ready.max_file_label">最大單檔</span> <span id="max-file-size">-</span></span>
                     </div>
                 </div>
+
+                <!-- 換路徑說明（路徑改變時顯示） -->
+                <p class="state-hint ready-path-note" id="ready-path-note" style="display:none" data-i18n="ready.path_change_note"></p>
 
                 <!-- iCloud 最佳化儲存提示（Q） -->
                 <div class="icloud-hint" id="icloud-hint">
@@ -296,6 +302,7 @@
                     <h2 id="done-main-title">備份完成</h2>
                     <p class="state-hint done-subtitle" id="done-subtitle"></p>
                     <p class="state-hint done-safe-hint" data-i18n="done.safe_hint"></p>
+                    <p class="state-hint done-archive-hint" data-i18n="done.archive_hint"></p>
                     <!-- 首次備份彩蛋 -->
                     <p class="done-first-egg" id="done-first-egg" style="display:none" data-i18n="done.first_egg">這是你用 iVault 備份的第一次。歡迎。</p>
                 </div>
@@ -404,6 +411,10 @@
                     <button class="btn-icon" id="btn-settings-change-path" data-i18n="settings.change">更換</button>
                     <button class="btn-icon" id="btn-settings-open-folder" data-i18n="settings.open_folder">開啟</button>
                 </div>
+            </div>
+            <div class="settings-section">
+                <div class="settings-section-label" data-i18n="settings.backup_size">備份大小</div>
+                <div id="settings-backup-size" class="settings-value">-</div>
             </div>
             <div class="settings-section settings-toggle-row">
                 <span data-i18n="settings.autostart">開機時自動啟動</span>

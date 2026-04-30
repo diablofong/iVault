@@ -96,7 +96,7 @@ func TestReadHEICShootDate_ExifWithin512KB(t *testing.T) {
 
 func makeTestOrganizer(t *testing.T, backupPath string) *Organizer {
 	t.Helper()
-	return NewOrganizer(backupPath, "TestPhone", "AABBCCDD1234", true)
+	return NewOrganizer(backupPath, "TestPhone", "AABBCCDD1234", "", true)
 }
 
 func TestResolveByDate_UnknownDate(t *testing.T) {

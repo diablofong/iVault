@@ -30,6 +30,10 @@ export function GetBackupEstimate(arg1, arg2) {
   return window['go']['main']['App']['GetBackupEstimate'](arg1, arg2);
 }
 
+export function GetBackupFolderSize(arg1) {
+  return window['go']['main']['App']['GetBackupFolderSize'](arg1);
+}
+
 export function GetBackupHistory() {
   return window['go']['main']['App']['GetBackupHistory']();
 }

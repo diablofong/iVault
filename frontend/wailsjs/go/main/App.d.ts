@@ -19,6 +19,8 @@ export function GetAutostart():Promise<boolean>;
 
 export function GetBackupEstimate(arg1:string,arg2:string):Promise<backup.BackupEstimate>;
 
+export function GetBackupFolderSize(arg1:string):Promise<number>;
+
 export function GetBackupHistory():Promise<Array<config.BackupRecord>>;
 
 export function GetConnectedDevice():Promise<device.DeviceInfo>;

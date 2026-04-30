@@ -22,6 +22,7 @@ export default {
     'banner.install':           '安裝',
 
     // ONBOARDING（首次啟動三步引導）
+    'onboard.archive_hint':   '備份是保險庫，不是鏡像 — 就算在手機上刪掉，照片在電腦上仍然安全。',
     'onboard.step_1_of_3':      '1 / 3',
     'onboard.step_2_of_3':      '2 / 3',
     'onboard.step_3_of_3':      '3 / 3',
@@ -39,6 +40,7 @@ export default {
     // SETTINGS MODAL
     'settings.title':         '設定',
     'settings.backup_path':   '備份資料夾',
+    'settings.backup_size':   '備份大小',
     'settings.change':        '更換',
     'settings.open_folder':   '開啟',
     'settings.autostart':     '開機時自動啟動',
@@ -77,6 +79,8 @@ export default {
 
     // READY
     'ready.incremental_hint': 'iVault 只複製新增的照片，已備份的不會重複。',
+    'ready.path_change_note': '舊備份保留在原位置，新備份將從這個資料夾開始。',
+    'ready.name_hint':        '裝置名稱是預設的「iPhone」，建議在手機設定 > 一般 > 關於本機 中設定你的名字，方便日後辨識。',
     'ready.label_to':    '備份到',
     'ready.choose':      '選擇',
     'ready.heic':        '備份後同時轉存 JPEG 副本',
@@ -111,6 +115,7 @@ export default {
     'done.subtitle':         '備份於 {date}',
     'done.first_egg':        '這是你用 iVault 備份的第一次。歡迎。',
     'done.safe_hint':        '照片已安全存在這台電腦，可以拔掉 iPhone 了。',
+    'done.archive_hint':     '即使之後在手機上刪除，照片依然保存在備份中。',
     'done.live_photo_note':  '含 Live Photo 原始檔',
     'done.unknown_date_hint':'張照片日期無法讀取，已放入「未知日期」資料夾',
     'done.continue':         '繼續',

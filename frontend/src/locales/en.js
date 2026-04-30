@@ -22,6 +22,7 @@ export default {
     'banner.install':           'Install',
 
     // ONBOARDING
+    'onboard.archive_hint':   'Backup is an archive, not a mirror — photos you delete from your iPhone are still safe on your computer.',
     'onboard.step_1_of_3':      '1 / 3',
     'onboard.step_2_of_3':      '2 / 3',
     'onboard.step_3_of_3':      '3 / 3',
@@ -39,6 +40,7 @@ export default {
     // SETTINGS MODAL
     'settings.title':         'Settings',
     'settings.backup_path':   'Backup Folder',
+    'settings.backup_size':   'Backup Size',
     'settings.change':        'Change',
     'settings.open_folder':   'Open',
     'settings.autostart':     'Launch at login',
@@ -78,6 +80,8 @@ export default {
 
     // READY
     'ready.incremental_hint': 'iVault only copies new photos — previously backed up files are skipped.',
+    'ready.path_change_note': 'Old backups remain at the previous location. New backups will start from this folder.',
+    'ready.name_hint':        'Your device is named "iPhone". Consider adding your name in iPhone Settings → General → About → Name for easier identification.',
     'ready.label_to':    'Back up to',
     'ready.choose':      'Choose',
     'ready.heic':        'Also save JPEG copies of HEIC photos',
@@ -112,6 +116,7 @@ export default {
     'done.subtitle':         'Backed up on {date}',
     'done.first_egg':        'This is your first backup with iVault. Welcome.',
     'done.safe_hint':        'Your photos are safely stored on this computer. You can unplug your iPhone.',
+    'done.archive_hint':     'Photos you delete from your iPhone later will still be preserved in this backup.',
     'done.live_photo_note':  'Includes Live Photo originals',
     'done.unknown_date_hint':'photos could not be dated and were placed in the "unknown-date" folder',
     'done.continue':         'Continue',

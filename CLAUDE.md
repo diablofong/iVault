@@ -63,15 +63,22 @@ IDLE → DEVICE_FOUND → TRUST_GUIDE → READY → BACKING_UP → DONE
 ```
 
 **IDLE has three variants** (same view, switched by JS):
-- `idle-variant-first` — `history.length === 0`
-- `idle-variant-returning` — `history.length > 0 && !lastInterrupted`
-- `idle-variant-interrupted` — `lastInterrupted === true`
+- `idle-variant-first` — `devices[udid]` is nil / no backup record
+- `idle-variant-returning` — `devices[udid].lastInterrupted === false`
+- `idle-variant-interrupted` — `devices[udid].lastInterrupted === true`
 
-**Config fields that drive UI state:**
-- `LastInterrupted bool` — selects IDLE variant
-- `InterruptedDone / InterruptedTotal int` — shown in interrupted variant
-- `FirstBackupDone bool` — controls DONE page first-time confetti
-- `BackupRecord.PhotosCount / VideosCount` — shown in returning variant
+**Config architecture (per-device, v1.0.0+):**
+- `AppConfig.DefaultBackupPath` — global default backup path
+- `AppConfig.Devices map[UDID]*DeviceConfig` — per-device state
+- `DeviceConfig.FolderName` — immutable folder name, set at first connection: `"{Name} [{UDID[:8]}]"`
+- `DeviceConfig.Name` — editable display name shown in UI
+- `DeviceConfig.LastInterrupted bool` — selects IDLE variant
+- `DeviceConfig.InterruptedDone / InterruptedTotal int` — shown in interrupted variant
+- `DeviceConfig.FirstBackupDone bool` — controls DONE page first-time confetti
+- `DeviceConfig.PhotosCount / VideosCount` — shown in returning variant (delta from last session)
+
+**Legacy fields (deprecated, kept for migration only):**
+- `History []BackupRecord`, `LastInterrupted bool`, `FirstBackupDone bool`, `FirstBackupDoneDevices []string`
 
 ## i18n
 

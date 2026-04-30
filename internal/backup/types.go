@@ -4,6 +4,7 @@ package backup
 type BackupConfig struct {
 	DeviceUDID     string `json:"deviceUdid"`
 	DeviceName     string `json:"deviceName"`
+	FolderName     string `json:"folderName,omitempty"` // 由後端從 DeviceConfig 填入，前端不需傳
 	BackupPath     string `json:"backupPath"`
 	ConvertHeic    bool   `json:"convertHeic"`
 	OrganizeByDate bool   `json:"organizeByDate"`

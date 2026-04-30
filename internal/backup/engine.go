@@ -35,7 +35,7 @@ type Engine struct {
 func NewEngine(config BackupConfig, emitFn func(string, any)) *Engine {
 	return &Engine{
 		config:    config,
-		organizer: NewOrganizer(config.BackupPath, config.DeviceName, config.DeviceUDID, config.OrganizeByDate),
+		organizer: NewOrganizer(config.BackupPath, config.DeviceName, config.DeviceUDID, config.FolderName, config.OrganizeByDate),
 		speed:     NewSpeedTracker(),
 		emitFn:    emitFn,
 	}
