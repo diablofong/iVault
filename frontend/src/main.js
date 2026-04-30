@@ -449,6 +449,42 @@ document.getElementById('btn-backup-again')?.addEventListener('click', () => {
         const path = appConfig?.lastBackupPath;
         if (path) OpenFolder(path);
     });
+    document.getElementById('btn-idle-open-folder-first')?.addEventListener('click', () => {
+        const path = appConfig?.lastBackupPath;
+        if (path) OpenFolder(path);
+    });
+    document.getElementById('btn-idle-open-folder-interrupted')?.addEventListener('click', () => {
+        const path = appConfig?.lastBackupPath;
+        if (path) OpenFolder(path);
+    });
+
+    // 設定 modal
+    document.getElementById('btn-settings')?.addEventListener('click', openSettingsModal);
+    document.getElementById('btn-settings-close')?.addEventListener('click', closeSettingsModal);
+    document.getElementById('modal-settings')?.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeSettingsModal();
+    });
+    document.getElementById('btn-settings-open-folder')?.addEventListener('click', () => {
+        const path = appConfig?.lastBackupPath;
+        if (path) OpenFolder(path);
+    });
+    document.getElementById('btn-settings-change-path')?.addEventListener('click', async () => {
+        try {
+            const path = await SelectBackupFolder();
+            if (!path) return;
+            selectedPath = path;
+            if (appConfig) {
+                appConfig.lastBackupPath = path;
+                try { await SaveConfig(appConfig); } catch (e) {}
+            }
+            const pathEl = document.getElementById('settings-path-value');
+            if (pathEl) pathEl.textContent = path;
+        } catch (e) {}
+    });
+    document.getElementById('settings-autostart-toggle')?.addEventListener('change', async (e) => {
+        try { await SetAutostart(e.target.checked); } catch (e) {}
+    });
+
     document.getElementById('btn-report-issue')?.addEventListener('click', () => {
         OpenURL('https://github.com/diablofong/ivault/issues/new');
     });
@@ -562,6 +598,8 @@ async function onEnterIdle() {
                 ctaEl.textContent = t('idle.interrupted.cta');
             }
         }
+        const interruptedFolderBtn = document.getElementById('btn-idle-open-folder-interrupted');
+        if (interruptedFolderBtn) interruptedFolderBtn.style.display = cfg?.lastBackupPath ? '' : 'none';
     } else if (isReturning) {
         // E-13: 確認 manifest 存在，避免資料夾被刪後還顯示 returning 變體
         const rec = history[0];
@@ -584,21 +622,33 @@ async function onEnterIdle() {
         const photos = rec.photosCount ?? 0;
         const videos = rec.videosCount ?? 0;
         const deviceLabel = rec.deviceName || 'iPhone';
+        const lang = getLang();
+
+        // ✓ 安心訊號：主角是「已安全備份 · 日期」
+        const checkLabel = document.getElementById('idle-check-label');
+        if (checkLabel) {
+            checkLabel.textContent = lang === 'zh-TW'
+                ? `已安全備份 · ${dateStr}`
+                : `Safely backed up · ${dateStr}`;
+        }
+
+        // 差量文案：上次新增幾張（per-session，非累計）
         const infoEl = document.getElementById('idle-last-backup-info');
         if (infoEl) {
-            const lang = getLang();
             if (photos === 0 && videos === 0) {
                 infoEl.textContent = lang === 'zh-TW'
-                    ? `上次備份：${dateStr} · ${deviceLabel} · 全部已是最新`
-                    : `Last backed up: ${dateStr} · ${deviceLabel} · Everything is up to date`;
+                    ? `${deviceLabel} · 全部都是最新的`
+                    : `${deviceLabel} · Everything up to date`;
             } else if (lang === 'zh-TW') {
-                infoEl.textContent = `上次備份：${dateStr} · ${deviceLabel} · ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`;
+                infoEl.textContent = `${deviceLabel} · 上次新增 ${fmt(photos)} 張照片 · ${fmt(videos)} 段影片`;
             } else {
-                infoEl.textContent = `Last backed up: ${dateStr} · ${deviceLabel} · ${fmt(photos)} photos · ${fmt(videos)} videos`;
+                infoEl.textContent = `${deviceLabel} · ${fmt(photos)} photos · ${fmt(videos)} videos added`;
             }
         }
     } else {
         document.getElementById('idle-variant-first').style.display = '';
+        const firstFolderBtn = document.getElementById('btn-idle-open-folder-first');
+        if (firstFolderBtn) firstFolderBtn.style.display = cfg?.lastBackupPath ? '' : 'none';
     }
 }
 
@@ -1219,6 +1269,24 @@ function startComfortTimer() {
             idx++;
         }
     }, 120000); // 每 2 分鐘換一條
+}
+
+async function openSettingsModal() {
+    const modal = document.getElementById('modal-settings');
+    if (!modal) return;
+    const pathEl = document.getElementById('settings-path-value');
+    if (pathEl) pathEl.textContent = appConfig?.lastBackupPath || '-';
+    try {
+        const on = await GetAutostart();
+        const toggle = document.getElementById('settings-autostart-toggle');
+        if (toggle) toggle.checked = on;
+    } catch (e) {}
+    modal.style.display = 'flex';
+}
+
+function closeSettingsModal() {
+    const modal = document.getElementById('modal-settings');
+    if (modal) modal.style.display = 'none';
 }
 
 function showCloseAppConfirm() {

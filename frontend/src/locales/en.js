@@ -6,6 +6,7 @@ export default {
     'idle.first.privacy':       'No data collected · No account required',
 
     'idle.returning.title':     'Welcome back',
+    'idle.returning.safe':      'Safely backed up',
     'idle.returning.cta':       'Connect iPhone with a USB cable to continue',
 
     'idle.interrupted.title':   'Your last backup was interrupted',
@@ -34,6 +35,14 @@ export default {
     'onboard.s3.desc':          'Plug in your iPhone and backup starts automatically — no need to open iVault',
     'onboard.s3.yes':           'Yes, start automatically',
     'onboard.s3.no':            'No, I\'ll open it myself',
+
+    // SETTINGS MODAL
+    'settings.title':         'Settings',
+    'settings.backup_path':   'Backup Folder',
+    'settings.change':        'Change',
+    'settings.open_folder':   'Open',
+    'settings.autostart':     'Launch at login',
+    'settings.close':         'Close',
 
     // AUTO BACKUP COUNTDOWN
     'ready.auto_now':           'Now',

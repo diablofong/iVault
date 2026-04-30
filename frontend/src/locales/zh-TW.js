@@ -6,6 +6,7 @@ export default {
     'idle.first.privacy':       '不收集任何資料 · 不需要帳號',
 
     'idle.returning.title':     '歡迎回來',
+    'idle.returning.safe':      '已安全備份',
     'idle.returning.cta':       '用 USB 線連接 iPhone 繼續',
 
     'idle.interrupted.title':   '你的上次備份被打斷了',
@@ -34,6 +35,14 @@ export default {
     'onboard.s3.desc':          '插上 iPhone 就自動開始備份，不需要手動開啟 iVault',
     'onboard.s3.yes':           '是，自動啟動',
     'onboard.s3.no':            '不用，我自己開',
+
+    // SETTINGS MODAL
+    'settings.title':         '設定',
+    'settings.backup_path':   '備份資料夾',
+    'settings.change':        '更換',
+    'settings.open_folder':   '開啟',
+    'settings.autostart':     '開機時自動啟動',
+    'settings.close':         '關閉',
 
     // AUTO BACKUP COUNTDOWN（自動備份規則）
     'ready.auto_now':           '立即',

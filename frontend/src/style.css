@@ -1354,6 +1354,56 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
     margin-left: -2px;
 }
 
+/* ── IDLE 設定按鈕 ───────────────────────────────────────── */
+#view-idle .card { position: relative; }
+
+.btn-settings {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--text-quaternary);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 150ms, color 150ms;
+    padding: 0;
+}
+.btn-settings:hover {
+    background: var(--bg-surface-2);
+    color: var(--text-secondary);
+}
+
+/* ── IDLE 安心訊號（returning 變體） ────────────────────── */
+.idle-status-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+.idle-check-icon {
+    color: var(--success);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+}
+.idle-check-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* ── IDLE 獨立資料夾按鈕（first 變體底部） ──────────────── */
+.idle-folder-standalone {
+    margin-top: 4px;
+}
+
 /* ── IDLE 回訪資料夾行 ───────────────────────────────────── */
 .idle-info-row {
     display: flex;
@@ -1471,4 +1521,96 @@ body:not(.dark) .update-banner {
     margin: 0 0 8px;
     line-height: 1.6;
     white-space: pre-line;
+}
+
+/* ── 設定 Modal ─────────────────────────────────────────── */
+.modal-settings-card {
+    max-width: 380px;
+    text-align: left;
+    gap: 0;
+    padding: 24px 24px 20px;
+}
+.modal-settings-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0 0 18px;
+    color: var(--text);
+    letter-spacing: -0.01em;
+}
+.settings-section {
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+.settings-section-label {
+    font-size: 11px;
+    color: var(--text-quaternary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+.settings-path-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.settings-path-row .path-value {
+    flex: 1;
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.settings-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text);
+    border-bottom: none;
+    margin-bottom: 18px;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-flex;
+    width: 36px;
+    height: 20px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+.toggle-knob {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 10px;
+    transition: background 0.2s;
+}
+.toggle-knob::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.2);
+}
+.toggle-switch input:checked + .toggle-knob {
+    background: oklch(0.55 0.2 250);
+}
+.toggle-switch input:checked + .toggle-knob::after {
+    transform: translateX(16px);
+}
+.settings-close-btn {
+    width: 100%;
 }
