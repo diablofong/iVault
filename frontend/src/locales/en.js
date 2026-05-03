@@ -1,7 +1,7 @@
 export default {
     // IDLE — three variants
     'idle.first.title':         'Connect iPhone, start backing up.',
-    'idle.first.trust':         'Offline · Free & open source · No account needed',
+    'idle.first.trust':         'No account needed · Offline · Free & open source',
     'idle.first.cta':           'Plug in USB — iVault detects and backs up automatically',
     'idle.first.preview':       'After backup, photos are organized by month — browse directly in File Explorer',
 
@@ -18,7 +18,7 @@ export default {
     'idle.update.suffix':       'available — your backup is safe →',
 
     // DRIVER BANNER
-    'banner.driver_missing':    'Apple Devices is required to connect your iPhone',
+    'banner.driver_missing':    'Install Apple Devices first — then your iPhone will connect',
     'banner.install':           'Install',
 
     // ONBOARDING

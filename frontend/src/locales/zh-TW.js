@@ -1,7 +1,7 @@
 export default {
     // IDLE — 三種變體
     'idle.first.title':         '連接 iPhone，開始備份',
-    'idle.first.trust':         '離線備份 · 免費開源 · 不需帳號',
+    'idle.first.trust':         '不需帳號 · 離線備份 · 免費開源',
     'idle.first.cta':           '插上 USB 線，iVault 自動偵測並備份',
     'idle.first.preview':       '備份完成後，照片按月份整理，可直接從資料夾瀏覽',
 
@@ -18,7 +18,7 @@ export default {
     'idle.update.suffix':       '已發布（不影響備份資料）→',
 
     // DRIVER BANNER（IDLE 頁早期警告）
-    'banner.driver_missing':    '需要 Apple Devices 才能連接 iPhone',
+    'banner.driver_missing':    '先安裝 Apple Devices，iPhone 即可連線',
     'banner.install':           '安裝',
 
     // ONBOARDING（首次啟動三步引導）

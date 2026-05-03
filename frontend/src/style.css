@@ -248,7 +248,7 @@ body.os-windows .titlebar-buttons { display: flex; }
     border-radius: 20px;
     backdrop-filter: blur(32px) saturate(160%);
     -webkit-backdrop-filter: blur(32px) saturate(160%);
-    padding: 28px 24px;
+    padding: 36px 28px;
     width: 100%;
     max-width: 480px;
     max-height: calc(100vh - 76px);
@@ -473,9 +473,20 @@ body.os-windows .card { border-radius: 12px; }
 .btn-auto-snooze:hover,
 .btn-auto-skip:hover { background: var(--bg-surface-2); }
 
+/* ── IDLE icon 區塊間距 ──────────────────────────────────── */
+.idle-icon {
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+/* ── IDLE first variant 文字元素間距 ────────────────────── */
+#idle-variant-first > * + * {
+    margin-top: 10px;
+}
+
 /* ── IDLE 信任聲明（tagline + privacy 合併） ────────────── */
 .idle-trust-line {
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-secondary);
     text-align: center;
     letter-spacing: 0.01em;
@@ -483,8 +494,8 @@ body.os-windows .card { border-radius: 12px; }
 
 /* ── IDLE 預告文字（填充等待感） ────────────────────────── */
 .idle-preview {
-    font-size: 11px;
-    color: var(--text-tertiary);
+    font-size: 13px;
+    color: var(--text-secondary);
     text-align: center;
     margin-top: 2px;
 }
@@ -1308,7 +1319,7 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
 
 /* ── IDLE 三變體 ──────────────────────────────────────────── */
 .idle-hero-title {
-    font-size: 17px;
+    font-size: 22px;
     font-weight: 700;
     text-align: center;
     letter-spacing: -0.02em;
@@ -1316,8 +1327,8 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
 }
 
 .idle-cta {
-    font-size: 13px;
-    color: var(--text-secondary);
+    font-size: 15px;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
