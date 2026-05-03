@@ -93,30 +93,28 @@
         <!-- IDLE：等待連接（三變體） -->
         <div class="state-view" id="view-idle">
             <div class="card">
-                <!-- Apple Devices 未安裝警告 banner（H） -->
-                <div id="driver-banner" class="driver-banner" style="display:none">
-                    <span class="driver-banner-text" data-i18n="banner.driver_missing">需要 Apple Devices 才能連接 iPhone</span>
-                    <button class="driver-banner-btn" id="btn-driver-banner-install" data-i18n="banner.install">安裝</button>
-                </div>
                 <div class="state-icon idle-icon">
                     <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-                        <path d="M28 5L7 14v14c0 11 8.6 21 21 24 12.4-3 21-13 21-24V14L28 5z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" opacity="0.7"/>
-                        <circle cx="28" cy="22" r="2.5" fill="currentColor" opacity="0.7"/>
-                        <line x1="28" y1="28" x2="28" y2="39" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+                        <!-- cable top (PC side) -->
+                        <line x1="28" y1="5" x2="28" y2="17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+                        <!-- USB-A plug body -->
+                        <rect x="16" y="17" width="24" height="15" rx="2.5" stroke="currentColor" stroke-width="2.5" opacity="0.8"/>
+                        <!-- data pins -->
+                        <line x1="24" y1="21" x2="24" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+                        <line x1="32" y1="21" x2="32" y2="28" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+                        <!-- cable bottom (device side) -->
+                        <line x1="28" y1="32" x2="28" y2="44" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.65"/>
+                        <!-- downward arrow tip -->
+                        <path d="M21 39 L28 48 L35 39" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
                     </svg>
                 </div>
 
                 <!-- 變體 A：初次使用 -->
                 <div class="idle-variant" id="idle-variant-first">
-                    <h2 class="idle-hero-title" data-i18n="idle.first.title">把 iPhone 的照片與影片，備份到這台電腦。</h2>
-                    <p class="state-hint idle-cta" data-i18n="idle.first.cta">用 USB 線連接 iPhone 開始</p>
-                    <p class="idle-tagline" data-i18n="idle.first.tagline">完全離線 · 開源免費 · 原始畫質</p>
-                    <p class="idle-privacy-note" data-i18n="idle.first.privacy">不收集任何資料 · 不需要帳號</p>
-                    <button class="idle-folder-btn idle-folder-standalone" id="btn-idle-open-folder-first" style="display:none" title="開啟備份資料夾">
-                        <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                            <path d="M2 4a1 1 0 0 1 1-1h4l1 1.5H13a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
+                    <h2 class="idle-hero-title" data-i18n="idle.first.title">連接 iPhone，開始備份</h2>
+                    <p class="idle-trust-line" data-i18n="idle.first.trust">離線備份 · 免費開源 · 不需帳號</p>
+                    <p class="state-hint idle-cta" data-i18n="idle.first.cta">插上 USB 線，iVault 自動偵測並備份</p>
+                    <p class="idle-preview" data-i18n="idle.first.preview">備份完成後，照片按月份整理，可直接從資料夾瀏覽</p>
                 </div>
 
                 <!-- 變體 B：回訪 -->
@@ -150,6 +148,11 @@
                     <p class="state-hint idle-cta" data-i18n="idle.interrupted.cta">重新連接 iPhone 繼續備份</p>
                 </div>
 
+                <!-- Apple Devices 未安裝引導 banner（移至底部，避免搶奪第一視線） -->
+                <div id="driver-banner" class="driver-banner" style="display:none">
+                    <span class="driver-banner-text" data-i18n="banner.driver_missing">需要 Apple Devices 才能連接 iPhone</span>
+                    <button class="driver-banner-btn" id="btn-driver-banner-install" data-i18n="banner.install">安裝</button>
+                </div>
                 <p class="amds-status" id="amds-status" style="display:none" data-i18n="idle.amds_starting">正在啟動 Apple Devices 服務...</p>
                 <a class="update-banner" id="update-banner" style="display:none" href="#" target="_blank">
                     <span data-i18n="idle.update.prefix">新版本</span>

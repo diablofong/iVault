@@ -1,9 +1,9 @@
 export default {
     // IDLE — 三種變體
-    'idle.first.title':         '把 iPhone 的照片與影片，備份到這台電腦。',
-    'idle.first.cta':           '用 USB 線連接 iPhone 開始',
-    'idle.first.tagline':       '完全離線 · 開源免費 · 原始畫質',
-    'idle.first.privacy':       '不收集任何資料 · 不需要帳號',
+    'idle.first.title':         '連接 iPhone，開始備份',
+    'idle.first.trust':         '離線備份 · 免費開源 · 不需帳號',
+    'idle.first.cta':           '插上 USB 線，iVault 自動偵測並備份',
+    'idle.first.preview':       '備份完成後，照片按月份整理，可直接從資料夾瀏覽',
 
     'idle.returning.title':     '歡迎回來',
     'idle.returning.safe':      '已安全備份',

@@ -473,12 +473,20 @@ body.os-windows .card { border-radius: 12px; }
 .btn-auto-snooze:hover,
 .btn-auto-skip:hover { background: var(--bg-surface-2); }
 
-/* ── IDLE 隱私標注（K） ─────────────────────────────────── */
-.idle-privacy-note {
+/* ── IDLE 信任聲明（tagline + privacy 合併） ────────────── */
+.idle-trust-line {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    letter-spacing: 0.01em;
+}
+
+/* ── IDLE 預告文字（填充等待感） ────────────────────────── */
+.idle-preview {
     font-size: 11px;
     color: var(--text-tertiary);
     text-align: center;
-    margin-top: -4px;
+    margin-top: 2px;
 }
 
 /* ── READY：iCloud 最佳化提示（Q） ─────────────────────── */
@@ -1313,12 +1321,7 @@ body.os-windows .heic-convert-progress { border-radius: 7px; }
     font-weight: 600;
 }
 
-.idle-tagline {
-    font-size: 11px;
-    color: var(--text-tertiary);
-    text-align: center;
-    letter-spacing: 0.02em;
-}
+/* .idle-tagline removed — merged into .idle-trust-line */
 
 /* ── DONE 新樣式 ──────────────────────────────────────────── */
 .done-subtitle {

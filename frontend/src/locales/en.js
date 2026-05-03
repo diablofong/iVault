@@ -1,9 +1,9 @@
 export default {
     // IDLE — three variants
-    'idle.first.title':         'Back up your iPhone photos and videos to this computer.',
-    'idle.first.cta':           'Connect iPhone with a USB cable to get started',
-    'idle.first.tagline':       'Offline only · Free & open source · Original quality',
-    'idle.first.privacy':       'No data collected · No account required',
+    'idle.first.title':         'Connect iPhone, start backing up.',
+    'idle.first.trust':         'Offline · Free & open source · No account needed',
+    'idle.first.cta':           'Plug in USB — iVault detects and backs up automatically',
+    'idle.first.preview':       'After backup, photos are organized by month — browse directly in File Explorer',
 
     'idle.returning.title':     'Welcome back',
     'idle.returning.safe':      'Safely backed up',
